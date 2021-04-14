@@ -14,8 +14,16 @@ const STATE = {
     SEND_REQUEST: 1,
     SEND: 2,
     RECV_WAIT: 3,
-    RECV: 4
+    RECV: 4,
+    SEND_COMPLETE: 5,
+    RECV_COMPLETE: 6,
+    ERROR: 7
 };
+/**
+ * Represent the current state of the module.
+ * @type {number} 
+ */
+var curState = STATE.IDLE;
 /**
  * @type {net.Server}
  */
@@ -24,16 +32,11 @@ var serverSocket = null;
  * @type {net.Socket}
  */
 var clientSocket = null;
-/**
- * Represent the current state of the module.
- * @type {string} 'idle' | 'send'
- */
-var curState = STATE.IDLE;
 
 /**
  * @type {number} Global variable to measure speed.
  */
-var speedBytesRead = 0;
+var speedBytes = 0;
 /**
  * @type {number} Global variable to measure speed.
  */
@@ -113,7 +116,7 @@ const initServerSocket = (ip) => {
 
 /**
  * Return whether the server socket is not null and it is listening.
- * @returns {bool}
+ * @returns {boolean}
  */
 const isServerSocketListening = () => {
     return serverSocket && serverSocket.listening;
@@ -136,20 +139,47 @@ const closeServerSocket = () => {
  */
 const send = async (targetArray, receiverIp) => {
     return new Promise((resolve, reject) => {
-        curState = STATE.SEND;
+        curState = STATE.SEND_REQUEST;
         clientSocket = net.createConnection(PORT, receiverIp);
         let sentMetadata = false;
         let ind = 0;
         let arrayLen = targetArray.length;
         let thisTotalReadBytes = 0;
-        /**
-         * @type {Stats}
-         */
+        let thisSize = 0;
         let thisStat;
-        /**
-         * @type {fs.FileHandle}
-         */
         let handle;
+        const sendMetadata = async () => {
+            thisStat = await fs.stat(targetArray[ind]).catch((val) => {
+                reject(val);
+            });
+            thisSize = handle.size;
+            if (handle.isDirectory() || thisSize === 0) {
+                // no Need actual data to give.
+                // Go to next element immediately.
+                ind++
+                sentMetadata = false;
+                const header = thisStat.isDirectory() ? createDirectoryHeader(thisStat) : createFileHeader(thisStat);
+                clientSocket.write(header, 'utf-8', (err) => {
+                    reject(err);
+                });
+            }
+            else {
+                sentMetadata = true;
+                const header = createFileHeader(thisStat);
+                handle = await fs.open(targetArray[ind]).catch((val) => {
+                    reject(val);
+                });;
+                clientSocket.write(header, 'utf-8', (err) => {
+                    reject(err);
+                });
+            }
+        };
+
+        if (arrayLen === 0) {
+            // Nothing to send. Do not consider it an error.
+            resolve(true);
+        }
+
         clientSocket.on('connect', async () => {
             console.log('client socket connected to ' + clientSocket.remoteAddress);
             console.log('total ' + targetArray.length);
@@ -158,7 +188,11 @@ const send = async (targetArray, receiverIp) => {
         clientSocket.on('data', async (data) => {
             switch (curState) {
                 case STATE.SEND_REQUEST:
-                    // TODO Implement.
+                    if (data.toString('utf-8') === 'ok') {
+                        // Initiate send by sending the first element metadata.
+                        curState = STATE.SEND;
+                        sendMetadata();
+                    }
                     break
                 case STATE.SEND:
                     if (data.toString('utf-8') === 'ok') {
@@ -168,37 +202,21 @@ const send = async (targetArray, receiverIp) => {
                         }
                         if (!sentMetadata) {
                             // Send this element metadata.
-                            thisStat = await fs.stat(targetArray[ind])
-                                .catch((val) => {
-                                    reject(val);
-                                });
-                            const elementSize = handle.size;
-                            if (handle.isDirectory() || elementSize === 0) {
-                                // no Need actual data to give.
-                                // Go to next element immediately.
-                                ind++
-                                sentMetadata = false;
-                                const header = thisStat.isDirectory() ? createDirectoryHeader(thisStat) : createFileHeader(thisStat);
-                                clientSocket.write(header, 'utf-8', (err) => {
-                                    reject(err);
-                                });
-                            }
-                            else {
-                                const header = createFileHeader(thisStat);
-                                handle = await fs.open(targetArray[ind]);
-                                clientSocket.write(header, 'utf-8', (err) => {
-                                    reject(err);
-                                });
-                            }
+                            sendMetadata();
                         }
                         else {
                             // Send file data chunk by chunk;
                             let chunk = Buffer.alloc(CHUNKSIZE);
                             const ret = await handle.read(chunk, 0, CHUNKSIZE, 0);
-                            if (thisTotalReadBytes === ret.bytesRead) {
-                                // EOF reached.
+                            thisTotalReadBytes += ret.bytesRead;
+                            if (thisTotalReadBytes === thisSize) {
+                                // EOF reached. Done reading this file.
                                 ind++;
                                 sentMetadata = false;
+                            }
+                            if (ret.bytesRead === 0 || thisTotalReadBytes > thisSize) {
+                                // File size changed. This is unexpected thus consider it an error.
+                                reject('File changed');
                             }
                             clientSocket.write(header, (err) => {
                                 reject(err);
@@ -206,6 +224,8 @@ const send = async (targetArray, receiverIp) => {
                         }
                     }
                     break;
+                default:
+                    reject('Unexpected current state');
             }
         });
     });
@@ -218,6 +238,34 @@ const send = async (targetArray, receiverIp) => {
  */
 const recvElement = (downloadPath) => {
     // TODO implement
+}
+
+/**
+ * Return the # of bytes per second.
+ * @returns {number}
+ */
+const getSpeed = () => {
+    const now = Date.now();
+    const ret = speedBytes / ((now - speedStart) / 1000);
+    speedBytes = 0;
+    speedStart = now;
+    return ret;
+}
+
+/**
+ * Return the current state
+ */
+const getCurState = () => {
+    return curState;
+}
+
+/**
+ * Set the current state to idle.
+ * This is needed to reinitialize the state so after an error or complete,
+ * user has been acknowledged about the status and okay to do another job.
+ */
+const setIdle = () => {
+    curstate = STATE.IDLE;
 }
 
 /**
@@ -247,4 +295,4 @@ const createDirectoryHeader = (stat) => {
     return nameHeader + typeHeader + sizeHeader;
 }
 
-module.exports = { getMyNetworks, initServerSocket, isServerSocketListening, closeServerSocket, send };
+module.exports = { getMyNetworks, initServerSocket, isServerSocketListening, closeServerSocket, send, getSpeed, getCurState, setIdle };
