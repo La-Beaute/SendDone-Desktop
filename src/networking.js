@@ -1,11 +1,43 @@
 const os = require('os');
 const net = require('net');
 const fs = require('fs').promises;
+const { Stats } = require('fs');
 const path = require('path');
-const port = 8531;
-const chunkSize = 1 * 1024 * 1024;
+const { cursorTo } = require('readline');
+const { Socket } = require('dgram');
+
+// Definitions of constant values.
+const PORT = 8531;
+const CHUNKSIZE = 1 * 1024 * 1024;
+const STATE = {
+    IDLE: 0,
+    SEND_REQUEST: 1,
+    SEND: 2,
+    RECV_WAIT: 3,
+    RECV: 4
+};
+/**
+ * @type {net.Server}
+ */
 var serverSocket = null;
-var socketBusy = false;
+/**
+ * @type {net.Socket}
+ */
+var clientSocket = null;
+/**
+ * Represent the current state of the module.
+ * @type {string} 'idle' | 'send'
+ */
+var curState = STATE.IDLE;
+
+/**
+ * @type {number} Global variable to measure speed.
+ */
+var speedBytesRead = 0;
+/**
+ * @type {number} Global variable to measure speed.
+ */
+var speedStart = 0;
 
 /**
  * Return an array of dictionary each looks like: { name, ip, netmask }.
@@ -64,14 +96,19 @@ const initServerSocket = (ip) => {
 
     // Connection established.
     serverSocket.on('connection', (socket) => {
-
-        // The opponent sent something.
-        socket.on('data', (data) => {
-            data = data.toString('utf-8');
-            console.log(data);
-        });
+        if (curState === STATE.IDLE) {
+            // Only accept connect when the state is idle.
+            // The client sent something.
+            socket.on('data', (data) => {
+                data = data.toString('utf-8');
+                console.log(data);
+            });
+        }
+        else {
+            socket.destroy();
+        }
     });
-    serverSocket.listen(port, ip);
+    serverSocket.listen(PORT, ip);
 }
 
 /**
@@ -91,71 +128,89 @@ const closeServerSocket = () => {
         serverSocket = null;
     }
 }
-
-const send = async (sendArray, receiverIp) => {
-    var clientSocket = net.createConnection(port, receiverIp);
-    // TODO send metadata and elements array.
-    clientSocket.on('connect', async () => {
-        console.log('total ' + sendArray.length);
-        for (let i = 0; i < sendArray.length; ++i) {
-            await sendElement(sendArray[i], clientSocket);
-        }
-    });
-}
-
 /**
- * Send the target element to socket opponent.
- * This shall not be directly called from UI.
- * @param {String} targetPath absolute path of the target.
- * @param {net.Socket} socket connected socket.
- * @returns {Promise<bool>}
+ * Create a new client socket with the receiver ip and send elements in the array.
+ * Call this API from UI.
+ * @param {Array.<String>} targetArray 
+ * @param {String} receiverIp 
  */
-const sendElement = (targetPath, socket) => {
-    return new Promise(async (resolve, reject) => {
-        if (!path.isAbsolute(targetPath))
-            reject(false);
-        const stat = await fs.stat(targetPath).catch(() => {
-            // Cannot read file.
-            reject(false);
+const send = async (targetArray, receiverIp) => {
+    return new Promise((resolve, reject) => {
+        curState = STATE.SEND;
+        clientSocket = net.createConnection(PORT, receiverIp);
+        let sentMetadata = false;
+        let ind = 0;
+        let arrayLen = targetArray.length;
+        let thisTotalReadBytes = 0;
+        /**
+         * @type {Stats}
+         */
+        let thisStat;
+        /**
+         * @type {fs.FileHandle}
+         */
+        let handle;
+        clientSocket.on('connect', async () => {
+            console.log('client socket connected to ' + clientSocket.remoteAddress);
+            console.log('total ' + targetArray.length);
+            // TODO send metadata and elements array.
         });
-        if (stat.isFile()) {
-            const header = createFileHeader(stat);
-            socket.write(header, 'utf-8');
-            let chunkInd = 0;
-            const handle = await fs.open(targetPath);
-            const onData = async (data) => {
-                if (data.toString('utf8') === 'ok') {
-                    let chunk = new Buffer.alloc(chunkSize);
-                    const ret = await handle.read(chunk, 0, chunkSize, null);
-                    if (ret.bytesRead === 0) {
-                        // EOF reached. Close the file.
-                        await handle.close();
-                        console.log('EOF');
-                        // Remove listener.
-                        socket.removeListener('data', onData);
-                        resolve(true);
+        clientSocket.on('data', async (data) => {
+            switch (curState) {
+                case STATE.SEND_REQUEST:
+                    // TODO Implement.
+                    break
+                case STATE.SEND:
+                    if (data.toString('utf-8') === 'ok') {
+                        if (ind >= arrayLen) {
+                            // End of send.
+                            resolve(true);
+                        }
+                        if (!sentMetadata) {
+                            // Send this element metadata.
+                            thisStat = await fs.stat(targetArray[ind])
+                                .catch((val) => {
+                                    reject(val);
+                                });
+                            const elementSize = handle.size;
+                            if (handle.isDirectory() || elementSize === 0) {
+                                // no Need actual data to give.
+                                // Go to next element immediately.
+                                ind++
+                                sentMetadata = false;
+                                const header = thisStat.isDirectory() ? createDirectoryHeader(thisStat) : createFileHeader(thisStat);
+                                clientSocket.write(header, 'utf-8', (err) => {
+                                    reject(err);
+                                });
+                            }
+                            else {
+                                const header = createFileHeader(thisStat);
+                                handle = await fs.open(targetArray[ind]);
+                                clientSocket.write(header, 'utf-8', (err) => {
+                                    reject(err);
+                                });
+                            }
+                        }
+                        else {
+                            // Send file data chunk by chunk;
+                            let chunk = Buffer.alloc(CHUNKSIZE);
+                            const ret = await handle.read(chunk, 0, CHUNKSIZE, 0);
+                            if (thisTotalReadBytes === ret.bytesRead) {
+                                // EOF reached.
+                                ind++;
+                                sentMetadata = false;
+                            }
+                            clientSocket.write(header, (err) => {
+                                reject(err);
+                            });
+                        }
                     }
-                    else {
-                        socket.write(chunk, () => {
-                            console.log('chunk ' + (chunkInd++) + 'sent complete');
-                        });
-                    }
-                }
-            };
-            // Add listener.
-            socket.on('data', onData);
-        }
-        else if (stat.isDirectory()) {
-            // TODO implement.
-            resolve(true);
-        }
-        else {
-            // What the hell?
-            resolve(false);
-        }
+                    break;
+            }
+        });
     });
-
 }
+
 /**
  * Receive one element from sender.
  * Note that this shall not be directly called from UI.
@@ -167,15 +222,28 @@ const recvElement = (downloadPath) => {
 
 /**
  * 
- * @param {fs.Stats} stat fs.Stats object of the element.
+ * @param {Stats} stat fs.Stats object of the element.
  * @returns {String} 
  */
 const createFileHeader = (stat) => {
     const name = path.basename(targetPath);
     const size = stat.size;
-    const nameHeader = 'name:' + name + '\r\n';
-    const typeHeader = 'type:file\r\n';
-    const sizeHeader = 'size:' + size + '\r\n\r\n';
+    const nameHeader = 'name:' + name + '\n';
+    const typeHeader = 'type:file\n';
+    const sizeHeader = 'size:' + size + '\n\n';
+    return nameHeader + typeHeader + sizeHeader;
+}
+
+/**
+ * 
+ * @param {Stats} stat fs.Stats object of the element.
+ * @returns {String} 
+ */
+const createDirectoryHeader = (stat) => {
+    const name = path.basename(targetPath);
+    const size = stat.size;
+    const nameHeader = 'name:' + name + '\n';
+    const typeHeader = 'type:directory\n\n';
     return nameHeader + typeHeader + sizeHeader;
 }
 

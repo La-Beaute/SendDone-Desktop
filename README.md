@@ -33,24 +33,29 @@ To communicate at any arbitrary time, ear has to be open always, while mouth doe
 ### Send
 Sender connect to receiver and sends the following data first.
 ```text
-SendDone\r\n
-0.1.0\r\n
-type:send\r\n
-length:4\r\n
-name:file_1\r\n
-type:file\r\n
-name:file_2\r\n
-type:file\r\n
-name:sub_directory\r\n
-type:directory\r\n
-name:sub_directory/file_3\r\n
-type:file\r\n\r\n
+SendDone\n
+0.1.0\n
+type:send\n
+length:4\n
+name:file_1\n
+type:file\n
+name:file_2\n
+type:file\n
+name:sub_directory\n
+type:directory\n
+name:sub_directory/file_3\n
+type:file\n\n
 ```
 Next, if receiver approves seeing the list, sender sends each element.<br>
 If the element type is file, first send the file metadata.
 ```text
-name:file_1\r\n
-type:file\r\n
-size:1000\r\n\r\n
+name:file_1\n
+type:file\n
+size:1000\n\n
+```
+Else if the element is directory,
+```text
+name:sub_directory\n
+type:directory\n\n
 ```
 Then, sender waits for receiver to send `ok` sign. This is to handle user inputs and to distinguish element's metadata and actual data.<br>
