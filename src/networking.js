@@ -228,21 +228,19 @@ const send = async (targetArray, receiverIp) => {
             console.log('client socket connected to ' + clientSocket.remoteAddress);
             console.log('total ' + arrayLen);
             // TODO send metadata and elements array.
-            createSendRequestHeader(targetArray);
+            await createSendRequestHeader(targetArray);
         });
         clientSocket.on('data', async (data) => {
             // Receiver always send data with header.
             recvBuf = Buffer.concat([recvBuf, data]);
             const ret = splitHeader(recvBuf);
             let header = null;
-            if (ret) {
-                header = ret.header
-                recvBuf = ret.buf;
-            }
-            else {
+            if (!ret) {
                 // Has not received header yet. just exit the function here for more data by return.
                 return;
             }
+            header = ret.header
+            recvBuf = ret.buf;
             switch (curState) {
                 case STATE.SEND_REQUEST:
                     if (header.includes('ok')) {
@@ -261,8 +259,7 @@ const send = async (targetArray, receiverIp) => {
                         }
                         if (!sentMetadata) {
                             // Send this element metadata.
-                            // TODO Do we need await here?
-                            sendElementMetadata();
+                            await sendElementMetadata();
                         }
                         else {
                             // Send file data chunk by chunk;
@@ -289,7 +286,7 @@ const send = async (targetArray, receiverIp) => {
                     }
                     break;
                 default:
-                    reject('Unexpected current state');
+                    reject(new Error('Unexpected current state'));
             }
         });
     });
