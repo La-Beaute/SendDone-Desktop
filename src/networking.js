@@ -23,18 +23,29 @@ const VERSION = '0.1.0';
 const HEADER_END = '\n\n';
 
 /**
+ * STAR The following variables are used both.
+ */
+/**
  * Represent the current state of the module.
  * @type {number} 
  */
 var curState = STATE.IDLE;
 /**
+ * @type {number} Global variable to measure speed.
+ */
+var speedBytes = 0;
+/**
+ * @type {number} Global variable to measure speed.
+ */
+var speedStart = 0;
+
+/**
+ * STAR The following variables are used when receiving.
+ */
+/**
  * @type {net.Server}
  */
 var serverSocket = null;
-/**
- * @type {net.Socket}
- */
-var clientSocket = null;
 /**
  * This is a socket created when a client connects to my server socket.
  * @type {net.Socket}
@@ -46,26 +57,43 @@ var recvSocket = null;
  */
 var recvBuf = new Buffer.from([]);
 /**
- * Tells whether has received header from the opponent or not.
+ * Tells whether has parsed header from the opponent or not.
  * @type {boolean}
  */
-var headerReceived = false;
-
+var headerParsed = false;
+/**
+ * File handle for receiving.
+ * @type {fs.FileHandle}
+ */
+var fileHandle = null;
+/**
+ * Header of the current receiving element.
+ * @type {{}}
+ */
+var recvHeader = null;
 /**
  * Array of elements. Each element is composed of name, type, and size.
  * Size can be omitted if directory.
  * @type {Array.<{}>}
  */
 var elementArray = null;
+/**
+ * index for elementArray.
+ * @type {number}
+ */
+var index = 0;
+/**
+ * Total written bytes for this element.
+ */
+var writtenBytes = 0;
+/**
+ * STAR The following variables are used when sending.
+ */
+/**
+ * @type {net.Socket}
+ */
+var clientSocket = null;
 
-/**
- * @type {number} Global variable to measure speed.
- */
-var speedBytes = 0;
-/**
- * @type {number} Global variable to measure speed.
- */
-var speedStart = 0;
 
 /**
  * Return an array of dictionary each looks like: { name, ip, netmask }.
@@ -141,25 +169,32 @@ function initServerSocket(ip) {
 }
 
 /**
- * Handle on data event by receiver socket.
+ * Handler on data event happened on recvSocket.
  * @param {Buffer} data 
  */
-function recvSocketOnData(data) {
+async function recvSocketOnData(data, downloadPath) {
     recvBuf = Buffer.concat([recvBuf, data]);
-    const ret = splitHeader(recvBuf);
     let header = null;
-    if (!ret) {
-        // The header is still splitted. Wait for more data by return.
-        return;
+    let splitResult = null;
+    if (curState === STATE.IDLE || !headerParsed) {
+        // Try to parse header and save into header.
+        splitResult = splitHeader(recvBuf);
+        if (!splitResult) {
+            // The header is still splitted. Wait for more data by return.
+            return;
+        }
+        try {
+            header = JSON.parse(splitResult.header);
+            recvBuf = splitResult.buf;
+        } catch (err) {
+            console.error('Header parsing error. Not JSON format.');
+            recvSocket.destroy(() => {
+                console.log('Destroyed connection for bad header.');
+            });
+            return;
+        }
     }
-    try {
-        header = JSON.parse(ret.header);
-    } catch (err) {
-        console.error('Header parsing error. Not JSON format.');
-        recvSocket.destroy(() => {
-            console.log('Destroyed connection for bad header.');
-        });
-    }
+    // Reaching here means we now have header or already have header.
     switch (curState) {
         case STATE.IDLE:
             // Sender must have sent send request header.
@@ -169,16 +204,76 @@ function recvSocketOnData(data) {
                     console.log('Destroyed connection for bad header.');
                 });
             }
+            // Assign array to global variable, so that the UI can get it.
             elementArray = header.array;
+            index = 0;
             curState = STATE.RECV_WAIT;
             break;
         case STATE.RECV:
+            if (!headerParsed) {
+                // Parse header.
+                headerParsed = true;
+                switch (header.class) {
+                    case 'ok':
+                        // Nothing to do here. Just keep receiving.
+                        break;
+                    case 'stop':
+                        // TODO Implement
+                        break
+                    case 'end':
+                        // TODO Implement
+                        break
+                }
+                if (elementArray[index].type === 'directory') {
+                    try {
+                        await fs.mkdir(path.join([downloadPath, elementArray[index]].name));
+                    } catch (err) {
+                        throw err;
+                    }
+                    recvSocket.write('ok' + HEADER_END, (err) => {
+                        throw err;
+                    });
+                    headerParsed = false;
+                }
+                else {
+                    try {
+                        fileHandle = await fs.open(path.join([downloadPath, elementArray]), 'wx');
+                        recvSocket.write('ok' + HEADER_END, (err) => {
+                            throw err;
+                        });
+                    } catch (err) {
+                        // File exists.
+                        // TODO Handle file already exist case.
+                        throw err;
+                    }
+                }
+            }
+            if (recvBuf.length === CHUNKSIZE || recvBuf.length === elementArray[index].size - writtenBytes) {
+                // The whole chunk received.
+                // Write to file.
+                try {
+                    await fileHandle.appendFile(recvBuf);
+                } catch (err) {
+                    throw err;
+                }
+                headerParsed = false;
+                writtenBytes += recvBuf.length;
+                recvBuf = Buffer.from([]);
+                if (writtenBytes === elementArray[index].size) {
+                    // Whole file is written.
+                    index++;
+
+                }
+            }
+            else {
+                // Keep reading it.
+            }
             break;
         default:
             // What the hell?
             throw new Error('Unexpected current state');
     }
-    // Assign array to global variable, so that the UI can get it.
+    // TODO Handle state change.
 
 }
 
@@ -211,7 +306,7 @@ async function send(elementArray, receiverIp) {
         curState = STATE.SEND_REQUEST;
         clientSocket = net.createConnection(PORT, receiverIp);
         let sentMetadata = false;
-        let ind = 0;
+        index = 0;
         let thisTotalReadBytes = 0;
         let thisSize = 0;
         let thisStat;
@@ -222,24 +317,24 @@ async function send(elementArray, receiverIp) {
         recvBuf = new Buffer.from([]);
 
         const sendElementMetadata = async () => {
-            thisStat = await fs.stat(elementArray[ind]).catch((err) => {
+            thisStat = await fs.stat(elementArray[index]).catch((err) => {
                 reject(err);
             });
             thisSize = handle.size;
             if (handle.isDirectory() || thisSize === 0) {
                 // no Need actual data to give.
                 // Go to next element immediately.
-                ind++
+                index++
                 sentMetadata = false;
-                const header = thisStat.isDirectory() ? createDirectoryHeader(thisStat) : createFileHeader(thisStat);
+                const header = JSON.stringify({ class: 'ok' }) + HEADER_END;
                 clientSocket.write(header, 'utf-8', (err) => {
                     reject(err);
                 });
             }
             else {
                 sentMetadata = true;
-                const header = createFileHeader(thisStat);
-                handle = await fs.open(elementArray[ind]).catch((val) => {
+                const header = JSON.stringify({ class: 'ok' }) + HEADER_END;
+                handle = await fs.open(elementArray[index]).catch((val) => {
                     reject(val);
                 });
                 clientSocket.write(header, 'utf-8', (err) => {
@@ -316,37 +411,32 @@ async function send(elementArray, receiverIp) {
                 case STATE.SEND:
                     switch (header.class) {
                         case 'ok':
-                            if (ind >= elementArray.length) {
+                            if (index >= elementArray.length) {
                                 // End of send.
                                 curState = STATE.SEND_COMPLETE;
                                 resolve(true);
                             }
-                            if (!sentMetadata) {
-                                // Send this element metadata.
-                                await sendElementMetadata();
+                            // Send buffer which consists of header and chunk.
+                            header = Buffer.from('ok' + HEADER_END, 'utf-8');
+                            let chunk = Buffer.alloc(CHUNKSIZE);
+                            const ret = await handle.read(chunk, 0, CHUNKSIZE, 0);
+                            chunk = chunk.slice(0, ret.bytesRead);
+                            thisTotalReadBytes += ret.bytesRead;
+                            if (thisTotalReadBytes === thisSize) {
+                                // EOF reached. Done reading this file.
+                                index++;
                             }
-                            else {
-                                // Send file data chunk by chunk with header;
-                                header = Buffer.from('ok' + HEADER_END, 'utf-8');
-                                let chunk = Buffer.alloc(CHUNKSIZE);
-                                const ret = await handle.read(chunk, 0, CHUNKSIZE, 0);
-                                chunk = chunk.slice(0, ret.bytesRead);
-                                thisTotalReadBytes += ret.bytesRead;
-                                if (thisTotalReadBytes === thisSize) {
-                                    // EOF reached. Done reading this file.
-                                    ind++;
-                                    sentMetadata = false;
-                                }
-                                else if (ret.bytesRead === 0 || thisTotalReadBytes > thisSize) {
-                                    // File size changed. This is unexpected thus consider it an error.
-                                    reject(new Error('File changed'));
-                                }
-                                clientSocket.write(Buffer.concat([header, chunk]), (err) => {
-                                    if (err)
-                                        reject(err);
-                                    speedBytes += ret.bytesRead;
-                                });
+                            else if (ret.bytesRead === 0 || thisTotalReadBytes > thisSize) {
+                                // File size changed. This is unexpected thus consider it an error.
+                                clientSocket.destroy();
+                                reject(new Error('File changed'));
                             }
+                            clientSocket.write(Buffer.concat([header, chunk]), (err) => {
+                                header = null;
+                                if (err)
+                                    reject(err);
+                                speedBytes += ret.bytesRead;
+                            });
                             break;
                         case 'stop':
                             // TODO Implement
@@ -470,10 +560,10 @@ function createDirectoryHeader(stat) {
  * @returns {{header:String, buf:Buffer}|null}
  */
 function splitHeader(buf) {
-    const index = buf.indexOf(HEADER_END, 0, 'utf-8');
-    if (index >= 0) {
-        const header = buf.toString('utf8', 0, index);
-        return { header: header, buf: buf.slice(index + 2) };
+    const endInd = buf.indexOf(HEADER_END, 0, 'utf-8');
+    if (endInd >= 0) {
+        const header = buf.toString('utf8', 0, endInd);
+        return { header: header, buf: buf.slice(endInd + 2) };
     };
     return null;
 }
