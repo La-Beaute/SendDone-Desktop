@@ -20,7 +20,8 @@ const STATE = {
 };
 // TODO Can't get it somewhere else?
 const VERSION = '0.1.0';
-// const OK = 'ok\n\n';
+const HEADER_END = '\n\n';
+
 /**
  * Represent the current state of the module.
  * @type {number} 
@@ -39,7 +40,23 @@ var clientSocket = null;
  * @type {net.Socket}
  */
 var recvSocket = null;
+/**
+ * This shall be used by receiver socket.
+ * @type {Buffer}
+ */
+var recvBuf = new Buffer.from([]);
+/**
+ * Tells whether has received header from the opponent or not.
+ * @type {boolean}
+ */
+var headerReceived = false;
 
+/**
+ * Array of elements. Each element is composed of name, type, and size.
+ * Size can be omitted if directory.
+ * @type {Array.<{}>}
+ */
+var elementArray = null;
 
 /**
  * @type {number} Global variable to measure speed.
@@ -54,7 +71,7 @@ var speedStart = 0;
  * Return an array of dictionary each looks like: { name, ip, netmask }.
  * @returns {Array.<{name:String, ip:String, netmask:String}>} Array of networks.
  */
-const getMyNetworks = () => {
+function getMyNetworks() {
     var array = [];
     const interfaces = os.networkInterfaces();
     for (const network in interfaces) {
@@ -77,7 +94,7 @@ const getMyNetworks = () => {
  * Note that the port number is fixed thus cannot be changed.
  * @param {String} ip address. 
  */
-const initServerSocket = (ip) => {
+function initServerSocket(ip) {
     if (!ip) {
         // ip is not set.
         return;
@@ -107,16 +124,14 @@ const initServerSocket = (ip) => {
 
     // Connection established.
     serverSocket.on('connection', (socket) => {
-        if (curState === STATE.IDLE) {
-            // Only accept connect when the state is idle.
+        if (curState === STATE.IDLE && recvSocket === null) {
+            // Only accept connect when the state is idle and recvSocket is null.
             // The client sent something.
             // TODO Implement and handle error.
+
             recvSocket = socket;
             curState = STATE.RECV_WAIT;
-            recvSocket.on('data', (data) => {
-                data = data.toString('utf-8');
-                console.log(data);
-            });
+            recvSocket.on('data', recvSocketOnData);
         }
         else {
             socket.destroy();
@@ -126,17 +141,59 @@ const initServerSocket = (ip) => {
 }
 
 /**
+ * Handle on data event by receiver socket.
+ * @param {Buffer} data 
+ */
+function recvSocketOnData(data) {
+    recvBuf = Buffer.concat([recvBuf, data]);
+    const ret = splitHeader(recvBuf);
+    let header = null;
+    if (!ret) {
+        // The header is still splitted. Wait for more data by return.
+        return;
+    }
+    try {
+        header = JSON.parse(ret.header);
+    } catch (err) {
+        console.error('Header parsing error. Not JSON format.');
+        recvSocket.destroy(() => {
+            console.log('Destroyed connection for bad header.');
+        });
+    }
+    switch (curState) {
+        case STATE.IDLE:
+            // Sender must have sent send request header.
+            if (!validateSendRequestHeader(header)) {
+                console.error('Header error. Not valid.');
+                recvSocket.destroy(() => {
+                    console.log('Destroyed connection for bad header.');
+                });
+            }
+            elementArray = header.array;
+            curState = STATE.RECV_WAIT;
+            break;
+        case STATE.RECV:
+            break;
+        default:
+            // What the hell?
+            throw new Error('Unexpected current state');
+    }
+    // Assign array to global variable, so that the UI can get it.
+
+}
+
+/**
  * Return whether the server socket is not null and it is listening.
  * @returns {boolean}
  */
-const isServerSocketListening = () => {
+function isServerSocketListening() {
     return serverSocket && serverSocket.listening;
 }
 
 /**
  * Close the server socket.
  */
-const closeServerSocket = () => {
+function closeServerSocket() {
     if (serverSocket) {
         serverSocket.close();
         serverSocket = null;
@@ -145,28 +202,27 @@ const closeServerSocket = () => {
 /**
  * Create a new client socket with the receiver ip and send elements in the array.
  * Call this API from UI.
- * @param {Array.<String>} targetArray 
+ * @param {Array.<String>} elementArray 
  * @param {String} receiverIp 
  * @returns {boolean|Error} Whether send succeeded or failed, or error.
  */
-const send = async (targetArray, receiverIp) => {
+async function send(elementArray, receiverIp) {
     return new Promise((resolve, reject) => {
         curState = STATE.SEND_REQUEST;
         clientSocket = net.createConnection(PORT, receiverIp);
         let sentMetadata = false;
         let ind = 0;
-        let arrayLen = targetArray.length;
         let thisTotalReadBytes = 0;
         let thisSize = 0;
         let thisStat;
-        let recvBuf = new Buffer.from([]);
         /**
          * @type {fs.FileHandle}
          */
         let handle;
+        recvBuf = new Buffer.from([]);
 
         const sendElementMetadata = async () => {
-            thisStat = await fs.stat(targetArray[ind]).catch((err) => {
+            thisStat = await fs.stat(elementArray[ind]).catch((err) => {
                 reject(err);
             });
             thisSize = handle.size;
@@ -183,7 +239,7 @@ const send = async (targetArray, receiverIp) => {
             else {
                 sentMetadata = true;
                 const header = createFileHeader(thisStat);
-                handle = await fs.open(targetArray[ind]).catch((val) => {
+                handle = await fs.open(elementArray[ind]).catch((val) => {
                     reject(val);
                 });
                 clientSocket.write(header, 'utf-8', (err) => {
@@ -192,100 +248,119 @@ const send = async (targetArray, receiverIp) => {
             }
         };
         /**
-         * Create send request header and return.
-         * @param {Array.<String>} targetArray 
+         * Create and return send request header.
+         * @param {Array.<String>} elementArray 
+         * @returns {Promise<{app:String, version: String, class: String, array:Array.<>}>}
          */
-        const createSendRequestHeader = async (targetArray) => {
-            let header = 'SendDone' + '\n' + VERSION + '\n';
-            header += 'type:send' + '\n' + 'length:' + targetArray.length + '\n';
-            for (let element in targetArray) {
+        const createSendRequestHeader = async (elementArray) => {
+            let header = { app: "SendDone", version: VERSION, class: "send-request", array: [] };
+            for (let element of elementArray) {
                 // TODO Implement name handling for directory and file inside directory.
-                // TODO Add file size.
-                // If there is an element inside a directory,
-                // receiver has to know that the file goes into that directory.
-                const stat = await fs.stat(element).catch((err) => {
+                //      If there is an element inside a directory,
+                //      receiver has to know that the file goes into that directory.
+                thisStat = await fs.stat(element).catch((err) => {
                     reject(err);
                 });
-                let name = path.basename(element);
-                header += 'name:' + name + '\n';
-                if (stat.isDirectory()) {
-                    header += 'type:directory' + '\n';
+                let thisElement = null;
+                if (thisStat.isDirectory()) {
+                    thisElement = createDirectoryHeader(thisStat);
                 }
                 else {
-                    header += 'type:file' + '\n';
+                    thisElement = createFileHeader(thisStat);
                 }
+                header.array.push(thisElement);
             }
-            header + '\n';
             return header;
         }
 
-        if (arrayLen === 0) {
+        if (elementArray.length === 0) {
             // Nothing to send. But do not consider it an error.
             resolve(true);
         }
 
         clientSocket.on('connect', async () => {
             console.log('client socket connected to ' + clientSocket.remoteAddress);
-            console.log('total ' + arrayLen);
-            // TODO send metadata and elements array.
-            await createSendRequestHeader(targetArray);
+            console.log('total ' + elementArray.length);
+            let sendRequestHeader = await createSendRequestHeader(elementArray);
+            clientSocket.write(JSON.stringify(sendRequestHeader) + HEADER_END, 'utf-8', (err) => {
+                if (err)
+                    reject(err);
+            });
         });
+
         clientSocket.on('data', async (data) => {
             // Receiver always send data with header.
+            let header = null;
             recvBuf = Buffer.concat([recvBuf, data]);
             const ret = splitHeader(recvBuf);
-            let header = null;
             if (!ret) {
                 // Has not received header yet. just exit the function here for more data by return.
                 return;
             }
-            header = ret.header
+            header = JSON.parse(ret.header)
             recvBuf = ret.buf;
             switch (curState) {
                 case STATE.SEND_REQUEST:
-                    if (header.includes('ok')) {
-                        curState = STATE.SEND;
+                    switch (header.class) {
+                        case 'ok':
+                            curState = STATE.SEND;
+                            break;
+                        case 'no':
+                            curState = STATE.SEND_REJECT;
+                            break;
+                        default:
+                            // What the hell?
+                            console.error('header class value error: Unexpected value ' + header.class);
+                            reject(new Error('Header class value error'));
                     }
-                    else {
-                        curState = STATE.SEND_REJECT;
-                    }
-                    break
                 case STATE.SEND:
-                    if (header.includes('ok')) {
-                        if (ind >= arrayLen) {
-                            // End of send.
-                            curState = STATE.SEND_COMPLETE;
-                            resolve(true);
-                        }
-                        if (!sentMetadata) {
-                            // Send this element metadata.
-                            await sendElementMetadata();
-                        }
-                        else {
-                            // Send file data chunk by chunk;
-                            header = Buffer.from('ok\n\n', 'ascii');
-                            let chunk = Buffer.alloc(CHUNKSIZE);
-                            const ret = await handle.read(chunk, 0, CHUNKSIZE, 0);
-                            chunk = chunk.slice(0, ret.bytesRead);
-                            thisTotalReadBytes += ret.bytesRead;
-                            if (thisTotalReadBytes === thisSize) {
-                                // EOF reached. Done reading this file.
-                                ind++;
-                                sentMetadata = false;
+                    switch (header.class) {
+                        case 'ok':
+                            if (ind >= elementArray.length) {
+                                // End of send.
+                                curState = STATE.SEND_COMPLETE;
+                                resolve(true);
                             }
-                            if (ret.bytesRead === 0 || thisTotalReadBytes > thisSize) {
-                                // File size changed. This is unexpected thus consider it an error.
-                                reject(new Error('File changed'));
+                            if (!sentMetadata) {
+                                // Send this element metadata.
+                                await sendElementMetadata();
                             }
-                            clientSocket.write(Buffer.concat([header, chunk]), (err) => {
-                                if (err)
-                                    reject(err);
-                                speedBytes += ret.bytesRead;
-                            });
-                        }
+                            else {
+                                // Send file data chunk by chunk with header;
+                                header = Buffer.from('ok' + HEADER_END, 'utf-8');
+                                let chunk = Buffer.alloc(CHUNKSIZE);
+                                const ret = await handle.read(chunk, 0, CHUNKSIZE, 0);
+                                chunk = chunk.slice(0, ret.bytesRead);
+                                thisTotalReadBytes += ret.bytesRead;
+                                if (thisTotalReadBytes === thisSize) {
+                                    // EOF reached. Done reading this file.
+                                    ind++;
+                                    sentMetadata = false;
+                                }
+                                else if (ret.bytesRead === 0 || thisTotalReadBytes > thisSize) {
+                                    // File size changed. This is unexpected thus consider it an error.
+                                    reject(new Error('File changed'));
+                                }
+                                clientSocket.write(Buffer.concat([header, chunk]), (err) => {
+                                    if (err)
+                                        reject(err);
+                                    speedBytes += ret.bytesRead;
+                                });
+                            }
+                            break;
+                        case 'stop':
+                            // TODO Implement
+                            break
+                        case 'end':
+                            // TODO Implement
+                            break
+                        default:
+                            // What the hell?
+                            console.error('header class value error: Unexpected value ' + header.class);
+                            reject(new Error('Header class value error'));
                     }
-                    break;
                 default:
+                    // What the hell?
                     reject(new Error('Unexpected current state'));
             }
         });
@@ -296,7 +371,7 @@ const send = async (targetArray, receiverIp) => {
  * Return the # of bytes per second.
  * @returns {number}
  */
-const getSpeed = () => {
+function getSpeed() {
     const now = Date.now();
     const ret = speedBytes / ((now - speedStart) / 1000);
     speedBytes = 0;
@@ -307,7 +382,7 @@ const getSpeed = () => {
 /**
  * Return the current state
  */
-const getCurState = () => {
+function getCurState() {
     return curState;
 }
 
@@ -316,65 +391,91 @@ const getCurState = () => {
  * This is needed to reinitialize the state so after an error or complete,
  * user has been acknowledged about the status and okay to do another job.
  */
-const setCurStateIdle = () => {
-    curstate = STATE.IDLE;
+function setCurStateIdle() {
+    curState = STATE.IDLE;
 }
 /**
  * This shall be called when the user clicks receive accept button.
  * The module is going to change current state and be ready to receive.
  * @returns {boolean} Return the result of the function.
  */
-const acceptRecv = () => {
+function acceptRecv() {
     if (curState !== STATE.RECV_WAIT || recvSocket === null) {
         return false;
     }
-    curstate = STATE.RECV;
-    recvSocket.write('ok', 'utf-8');
+    curState = STATE.RECV;
+    const header = { class: 'ok' };
+    recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8');
+    return true;
 }
 
+/**
+ * This shall be called when the user clicks receive reject button.
+ * @returns {boolean} Return the result of the function.
+ */
+function rejectRecv() {
+    if (curState !== STATE.RECV_WAIT || recvSocket === null) {
+        return false;
+    }
+    curState = STATE.IDLE;
+    const header = { class: 'no' };
+    recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', () => {
+        recvSocket.destroy(() => {
+            recvSocket = null;
+        });
+    });
+    return true;
+}
+
+/**
+ * Validate header what sender sent and return false if invalid, or return true.
+ * @param {{app:String, version: String, class: String, array: Array.<{}>}} header 
+ */
+function validateSendRequestHeader(header) {
+    if (!header)
+        return false;
+    if (!header.app !== 'SendDone')
+        return false;
+    if (!header.version !== VERSION)
+        return false;
+    if (!header.array)
+        return false;
+    return true;
+}
 
 /**
  * 
  * @param {Stats} stat fs.Stats object of the element.
- * @returns {String} 
+ * @returns {{name:String, type: String, size: number}} 
  */
-const createFileHeader = (stat) => {
-    const name = path.basename(targetPath);
-    const size = stat.size;
-    const nameHeader = 'name:' + name + '\n';
-    const typeHeader = 'type:file\n';
-    const sizeHeader = 'size:' + size + '\n\n';
-    return nameHeader + typeHeader + sizeHeader;
+function createFileHeader(stat) {
+    const header = { name: path.basename(targetPath), type: "file", size: stat.size }
+    return header;
+}
+
+/**
+ * 
+ * @param {Stats} stat fs.Stats object of the element.
+ * @returns {{name:String, type: String}} 
+ */
+function createDirectoryHeader(stat) {
+    const header = { name: path.basename(targetPath), type: "directory" }
+    return header;
 }
 
 /**
  * split and separate a header from buf and return the header as a string form from the buf.
- * return null if cannot find delimiter '\n\n'.
+ * Return null if cannot find HEADER_END.
  * @param {Buffer} buf 
  * @returns {{header:String, buf:Buffer}|null}
  */
-const splitHeader = (buf) => {
-    const index = buf.indexOf('\n\n', 0, 'ascii');
+function splitHeader(buf) {
+    const index = buf.indexOf(HEADER_END, 0, 'utf-8');
     if (index >= 0) {
-        const header = buf.toString('ascii', 0, index);
+        const header = buf.toString('utf8', 0, index);
         return { header: header, buf: buf.slice(index + 2) };
     };
     return null;
 }
-
-/**
- * 
- * @param {Stats} stat fs.Stats object of the element.
- * @returns {String} 
- */
-const createDirectoryHeader = (stat) => {
-    const name = path.basename(targetPath);
-    const size = stat.size;
-    const nameHeader = 'name:' + name + '\n';
-    const typeHeader = 'type:directory\n\n';
-    return nameHeader + typeHeader + sizeHeader;
-}
-
-
 
 module.exports = { getMyNetworks, initServerSocket, isServerSocketListening, closeServerSocket, send, getSpeed, getCurState, setIdle: setCurStateIdle, acceptRecv };
