@@ -90,42 +90,25 @@ Then receiver sends the following data, and it shall be a header, without any fo
 Upon receiving `ok` sign after sending send request header, sender initiates sending with the first element's metadata, and the corresponding data chunk.<br>
 ```json
 {
-  "class": "ok",
-  "name": "file_1",
-  "type": "file",
-  "size": 1234
-}
-```
-| Key | Description |
-| :--- | :--- |
-| `class` | `ok`: Keep sending.<br>`stop`: Sender wants to stop for a time.<br>`end`: Sender wants to end permanently.  |
-| `name` | The name of the element. |
-| `type` | Either `file` or `directory`. |
-| `size` | The size of the file. Omitted when the element is directory. |
-
-After parsing the header from sender, only if `class` is `ok`, receiver sends a header.
-```json
-{
-  "class": "ok",
-}
-```
-| Key | Description |
-| :--- | :--- |
-| `class` | `ok`: Keep receiving.<br>`stop`: Receiver wants to stop for a time.<br>`end`: Receiver wants to stop permanently.
-
-Both sender and receiver agree to keep sending and receiving.<br>
-Thus sender sends next file chunk, following a header.<br>
-**NOTE** that if the element's type is `directory`, no need to send data.<br>
-Receiver can just make directory inside the receiving directory.
-```json
-{
   "class": "ok"
 }
 ```
+| Key | Description |
+| :--- | :--- |
+| `class` | `ok`: sending.<br>`stop`: wants to stop for a time.<br>`end`: wants to end permanently. |
+
+The header always looks like this, having only one key `class`.<br>
+After parsing the header from sender, only if `class` is `ok`, receiver sends a header, which is absolutely same as above.
+<br>
+
+Say both sender and receiver agree to keep sending and receiving.<br>
+Then sender sends next file chunk, following a header.<br>
+**NOTE** that if the element's type is `directory`, no need to send data.<br>
+Receiver can just make directory inside the receiving directory.
 
 Data chunk size is **fixed**, so sender always write a chunk into socket at once,<br>
 and receiver iterates until one whole chunk has been received.<br>
 **But** what if the size of the file is zero or the last chunk of the file is smaller than the fixed chunk size?<br>
-Receiver keeps track of the total file size from the header and the total length written so far.<br>
-If the total length written is equal to the total file size, receiver can stop writing and sends `ok` sign.
+Receiver keeps track of the array of the elements and each size from the send request header and the total length written so far for this element.<br>
+If the total length written for this file is equal to the file size, receiver can stop writing or waiting for more data and sends `ok` sign.
 <br>
