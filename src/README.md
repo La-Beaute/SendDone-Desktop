@@ -26,6 +26,9 @@ Of course, the header should not have `\n\n` within it.<br>
 We will use JSON formatted header and `JSON.stringify` to convert header into stream format.
 <br>
 
+There are some cases where header is followed by binary data or not.<br>
+On any cases, the header is always encoded in `utf-8`.
+
 ## Scan
 Come back later!
 
@@ -35,7 +38,7 @@ Sender connects to receiver and sends the following data first.
 {
   "app": "SendDone",
   "version": "0.1.0",
-  "header-type": "send-request",
+  "class": "send-request",
   "array": [
     {
       "name": "file_1",
@@ -68,14 +71,14 @@ The following describes the header in sender's perspective.
 | :--- | :--- |
 | `app` | `SendDone` is fixed value. |
 | `version` | the version of sender's `SendDone` app. |
-| `header-type` | `send-request` is fixed value. |
+| `class` | `send-request` is fixed value. |
 | `array` | The array of elements to send and receive.<br>File consists of `name`, `type`, and `size`.<br>Directory consists of `name` and `type`.
 
 Then, sender waits for receiver to send a sign.<br>
 Then receiver sends the following data, and it shall be a header, without any following data. Only `\n\n` is followed.<br>
 ```json
 {
-  "header-type": "ok"
+  "class": "ok"
 }
 ```
 
@@ -87,7 +90,7 @@ Then receiver sends the following data, and it shall be a header, without any fo
 Upon receiving `ok` sign after sending send request header, sender initiates sending with the first element's metadata, and the corresponding data chunk.<br>
 ```json
 {
-  "header-type": "ok",
+  "class": "ok",
   "name": "file_1",
   "type": "file",
   "size": 1234
@@ -95,20 +98,20 @@ Upon receiving `ok` sign after sending send request header, sender initiates sen
 ```
 | Key | Description |
 | :--- | :--- |
-| `header-type` | `ok`: Keep sending.<br>`stop`: Sender wants to stop for a time.<br>`end`: Sender wants to end permanently.  |
+| `class` | `ok`: Keep sending.<br>`stop`: Sender wants to stop for a time.<br>`end`: Sender wants to end permanently.  |
 | `name` | The name of the element. |
 | `type` | Either `file` or `directory`. |
 | `size` | The size of the file. Omitted when the element is directory. |
 
-After parsing the header from sender, only if `header-type` is `ok`, receiver sends a header.
+After parsing the header from sender, only if `class` is `ok`, receiver sends a header.
 ```json
 {
-  "header-type": "ok",
+  "class": "ok",
 }
 ```
 | Key | Description |
 | :--- | :--- |
-| `header-type` | `ok`: Keep receiving.<br>`stop`: Receiver wants to stop for a time.<br>`end`: Receiver wants to stop permanently.
+| `class` | `ok`: Keep receiving.<br>`stop`: Receiver wants to stop for a time.<br>`end`: Receiver wants to stop permanently.
 
 Both sender and receiver agree to keep sending and receiving.<br>
 Thus sender sends next file chunk, following a header.<br>
@@ -116,12 +119,13 @@ Thus sender sends next file chunk, following a header.<br>
 Receiver can just make directory inside the receiving directory.
 ```json
 {
-  "header-type": "ok"
+  "class": "ok"
 }
 ```
 
-Data chunk size is fixed, so sender always write a chunk into socket at once,<br>
+Data chunk size is **fixed**, so sender always write a chunk into socket at once,<br>
 and receiver iterates until one whole chunk has been received.<br>
-But what if the size of the file is zero or the last chunk of the file is smaller than the fixed chunk size?<br>
+**But** what if the size of the file is zero or the last chunk of the file is smaller than the fixed chunk size?<br>
 Receiver keeps track of the total file size from the header and the total length written so far.<br>
-If the total length written is equal to the total file size, receiver can stop writing and sends `ok` sign.<br>
+If the total length written is equal to the total file size, receiver can stop writing and sends `ok` sign.
+<br>
