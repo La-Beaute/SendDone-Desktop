@@ -57,20 +57,15 @@ var recvSocket = null;
  */
 var recvBuf = new Buffer.from([]);
 /**
- * Tells whether has parsed header from the opponent or not.
+ * Tells whether has parsed header sent from the receiver or not.
  * @type {boolean}
  */
-var headerParsed = false;
+var parsedHeader = false;
 /**
  * File handle for receiving.
  * @type {fs.FileHandle}
  */
 var fileHandle = null;
-/**
- * Header of the current receiving element.
- * @type {{}}
- */
-var recvHeader = null;
 /**
  * Array of elements. Each element is composed of name, type, and size.
  * Size can be omitted if directory.
@@ -176,7 +171,7 @@ async function recvSocketOnData(data, downloadPath) {
     recvBuf = Buffer.concat([recvBuf, data]);
     let header = null;
     let splitResult = null;
-    if (curState === STATE.IDLE || !headerParsed) {
+    if (curState === STATE.IDLE || !parsedHeader) {
         // Try to parse header and save into header.
         splitResult = splitHeader(recvBuf);
         if (!splitResult) {
@@ -210,9 +205,9 @@ async function recvSocketOnData(data, downloadPath) {
             curState = STATE.RECV_WAIT;
             break;
         case STATE.RECV:
-            if (!headerParsed) {
+            if (!parsedHeader) {
                 // Parse header.
-                headerParsed = true;
+                parsedHeader = true;
                 switch (header.class) {
                     case 'ok':
                         // Nothing to do here. Just keep receiving.
@@ -230,43 +225,52 @@ async function recvSocketOnData(data, downloadPath) {
                     } catch (err) {
                         throw err;
                     }
-                    recvSocket.write('ok' + HEADER_END, (err) => {
-                        throw err;
-                    });
-                    headerParsed = false;
+                    parsedHeader = false;
                 }
-                else {
-                    try {
-                        fileHandle = await fs.open(path.join([downloadPath, elementArray]), 'wx');
-                        recvSocket.write('ok' + HEADER_END, (err) => {
-                            throw err;
-                        });
-                    } catch (err) {
-                        // File exists.
-                        // TODO Handle file already exist case.
+                // TODO Handle various states(stop, end)
+                recvSocket.write('ok' + HEADER_END, 'utf-8', (err) => {
+                    if (err)
                         throw err;
-                    }
-                }
+                });
             }
             if (recvBuf.length === CHUNKSIZE || recvBuf.length === elementArray[index].size - writtenBytes) {
-                // The whole chunk received.
-                // Write to file.
+                // One whole chunk received.
+                // Write to file and send header to sender.
+                try {
+                    if (!fileHandle) {
+                        // First chunk of the file.
+                        // Open file handle.
+                        fileHandle = await fs.open(path.join([downloadPath, elementArray[index]]), 'wx');
+                    }
+                } catch (err) {
+                    // File already exists.
+                    // TODO Implement.
+                }
                 try {
                     await fileHandle.appendFile(recvBuf);
                 } catch (err) {
-                    throw err;
+                    // Appending to file error.
+                    // In this error, there is nothing SendDone can do about it.
+                    // Better delete what has been written so far,
+                    // mark it failed, and go to next element.
+                    // TODO mark failed.
+                    await fileHandle.close();
+                    await fs.rm(path.join([downloadPath, elementArray[index]]), { force=true });
                 }
-                headerParsed = false;
+                parsedHeader = false;
                 writtenBytes += recvBuf.length;
                 recvBuf = Buffer.from([]);
                 if (writtenBytes === elementArray[index].size) {
                     // Whole file is written.
                     index++;
-
+                    parsedHeader = false;
+                    await fileHandle.close();
+                    fileHandle = null;
                 }
-            }
-            else {
-                // Keep reading it.
+                recvSocket.write('ok' + HEADER_END, 'utf-8', (err) => {
+                    if (err)
+                        throw err;
+                });
             }
             break;
         default:
@@ -274,7 +278,6 @@ async function recvSocketOnData(data, downloadPath) {
             throw new Error('Unexpected current state');
     }
     // TODO Handle state change.
-
 }
 
 /**
@@ -297,7 +300,7 @@ function closeServerSocket() {
 /**
  * Create a new client socket with the receiver ip and send elements in the array.
  * Call this API from UI.
- * @param {Array.<String>} elementArray 
+ * @param {Array.<String>} elementArray
  * @param {String} receiverIp 
  * @returns {boolean|Error} Whether send succeeded or failed, or error.
  */
@@ -305,7 +308,6 @@ async function send(elementArray, receiverIp) {
     return new Promise((resolve, reject) => {
         curState = STATE.SEND_REQUEST;
         clientSocket = net.createConnection(PORT, receiverIp);
-        let sentMetadata = false;
         index = 0;
         let thisTotalReadBytes = 0;
         let thisSize = 0;
@@ -316,32 +318,6 @@ async function send(elementArray, receiverIp) {
         let handle;
         recvBuf = new Buffer.from([]);
 
-        const sendElementMetadata = async () => {
-            thisStat = await fs.stat(elementArray[index]).catch((err) => {
-                reject(err);
-            });
-            thisSize = handle.size;
-            if (handle.isDirectory() || thisSize === 0) {
-                // no Need actual data to give.
-                // Go to next element immediately.
-                index++
-                sentMetadata = false;
-                const header = JSON.stringify({ class: 'ok' }) + HEADER_END;
-                clientSocket.write(header, 'utf-8', (err) => {
-                    reject(err);
-                });
-            }
-            else {
-                sentMetadata = true;
-                const header = JSON.stringify({ class: 'ok' }) + HEADER_END;
-                handle = await fs.open(elementArray[index]).catch((val) => {
-                    reject(val);
-                });
-                clientSocket.write(header, 'utf-8', (err) => {
-                    reject(err);
-                });
-            }
-        };
         /**
          * Create and return send request header.
          * @param {Array.<String>} elementArray 
@@ -372,7 +348,6 @@ async function send(elementArray, receiverIp) {
             // Nothing to send. But do not consider it an error.
             resolve(true);
         }
-
         clientSocket.on('connect', async () => {
             console.log('client socket connected to ' + clientSocket.remoteAddress);
             console.log('total ' + elementArray.length);
@@ -382,6 +357,10 @@ async function send(elementArray, receiverIp) {
                     reject(err);
             });
         });
+
+        clientSocket.on('error', (err) => {
+            reject(err);
+        })
 
         clientSocket.on('data', async (data) => {
             // Receiver always send data with header.
@@ -414,6 +393,7 @@ async function send(elementArray, receiverIp) {
                             if (index >= elementArray.length) {
                                 // End of send.
                                 curState = STATE.SEND_COMPLETE;
+                                clientSocket.destroy();
                                 resolve(true);
                             }
                             // Send buffer which consists of header and chunk.
@@ -568,4 +548,4 @@ function splitHeader(buf) {
     return null;
 }
 
-module.exports = { getMyNetworks, initServerSocket, isServerSocketListening, closeServerSocket, send, getSpeed, getCurState, setIdle: setCurStateIdle, acceptRecv };
+module.exports = { getMyNetworks, initServerSocket, isServerSocketListening, closeServerSocket, send, getSpeed, getCurState, setIdle: setCurStateIdle, acceptRecv, rejectRecv };
