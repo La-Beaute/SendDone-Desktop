@@ -208,7 +208,7 @@ class Sender {
         this._elementHandle = await fs.open(this._elementArray[this._index].absPath);
         this._elementSize = (await this._elementHandle.stat()).size;
       }
-      ret = await this._elementHandle.read(chunk, 0, CHUNKSIZE, 0);
+      ret = await this._elementHandle.read(chunk, 0, CHUNKSIZE, null);
     } catch (err) {
       // TODO Notify receiver to go to next element.
       this._index++;
@@ -221,10 +221,14 @@ class Sender {
     if (this._elementReadBytes === this._elementSize) {
       // EOF reached. Done reading this file.
       this._index++;
+      await this._elementHandle.close();
+      this._elementHandle = null;
+      this._elementReadBytes = 0;
     }
     else if (ret.bytesRead === 0 || this._elementReadBytes > this._elementSize) {
       // File size changed. This is unexpected thus consider it an error.
       this._socket.end();
+      return;
     }
     this._socket.write(Buffer.concat([header, chunk]), this._onWriteError);
   }

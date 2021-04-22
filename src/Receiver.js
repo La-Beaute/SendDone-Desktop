@@ -145,7 +145,7 @@ class Receiver {
                 this._state = STATE.RECV_WAIT;
                 this._recvSocket = socket;
                 parsedHeader = false;
-                this.acceptRecv('./');
+                this.acceptRecv('C:/Users/dlguswo/Documents/workspace/tmp/tmp2');
                 break;
               default:
                 // What the hell?
@@ -221,12 +221,14 @@ class Receiver {
                       parsedHeader = false;
                       await this._elementHandle.close();
                       this._elementHandle = null;
+                      this._elementWrittenBytes = 0;
                     }
                     // TODO Handle various states(stop, end)
                     socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
                     if (this._index >= this._elementArray.length) {
                       this._recvSocket.end();
                       this._state = STATE.RECV_COMPLETE;
+                      this._recvSocket = null;
                     }
                   }
                 }
