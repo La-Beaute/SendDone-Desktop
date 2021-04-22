@@ -132,7 +132,7 @@ Upon receiving `ok` sign after sending send request header, sender initiates sen
 ```
 | Key | Description |
 | :--- | :--- |
-| `class` | `ok`: Sender wants to keep sending.<br>`stop`: Sender wants to stop for a time.<br>`end`: Sender wants to end permanently. |
+| `class` | `ok`: Sender wants to keep sending.<br>`stop`: Sender wants to stop for a time.<br>`end`: Sender wants to end permanently.<br>`next`: Sender had some error while handling this element. Go to next element. |
 
 The header always looks like this, having only one key `class`.<br>
 After parsing the header from sender, only if `class` is `ok`, receiver sends a header, which is absolutely same as above.
