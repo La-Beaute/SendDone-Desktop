@@ -2,9 +2,7 @@ const net = require('net');
 const fs = require('fs').promises;
 const { Stat } = require('fs');
 const path = require('path');
-const { PORT, STATE, HEADER_END, VERSION, splitHeader } = require('./Network');
-// Definitions of constant values.
-const CHUNKSIZE = 1 * 1024 * 1024;
+const { PORT, STATE, HEADER_END, VERSION, CHUNKSIZE, splitHeader } = require('./Network');
 
 class Sender {
   constructor() {
@@ -52,12 +50,12 @@ class Sender {
     this._recvBuf = new Buffer.from([]);
 
     this._onWriteError = (err) => {
-      console.err('Sender: Error Occurred during writing to Socket.');
-      console.err(err);
-      this._socket.destroy(() => {
-        this._socket = null;
-      });
-      this._state = STATE.ERR_NET;
+      if (err) {
+        console.error('Sender: Error Occurred during writing to Socket.');
+        console.error(err);
+        this._socket.destroy();
+        this._state = STATE.ERR_NET;
+      }
     }
 
     /**
@@ -66,7 +64,7 @@ class Sender {
      */
     this._handleNetworkErr = () => {
       this._state = STATE.ERR_NET;
-      this._socket.end(() => { this._socket = null; });
+      this._socket.end();
     }
   }
 
@@ -90,17 +88,18 @@ class Sender {
 
     this._socket = net.createConnection(PORT, receiverIp);
     this._socket.on('connect', async () => {
-      console.log('client socket connected to ' + clientSocket.remoteAddress);
+      console.log('client socket connected to ' + this._socket.remoteAddress);
       let sendRequestHeader = await this._createSendRequestHeader(this._elementArray);
       if (sendRequestHeader === null) {
         this._socket.end();
         return;
       }
       console.log('Sender: About to send total ' + this._elementArray.length);
-      clientSocket.write(JSON.stringify(sendRequestHeader) + HEADER_END, 'utf-8', this._onWriteError);
+      this._socket.write(JSON.stringify(sendRequestHeader) + HEADER_END, 'utf-8', this._onWriteError);
     });
 
     this._socket.on('data', async (data) => {
+      console.log('Sender: data event');
       // Receiver always sends header only.
       let recvHeader = null;
       this._recvBuf = Buffer.concat([this._recvBuf, data]);
@@ -197,18 +196,19 @@ class Sender {
     let ret = null;
     if (this._index >= this._elementArray.length) {
       // End of send.
+      console.log('Sender: Send complete');
       this._state = STATE.SEND_COMPLETE;
-      this._socket.end(() => { this._socket = null; });
+      this._socket.end();
       return;
     }
-    let header = Buffer.from('ok' + HEADER_END, 'utf-8');
+    let header = Buffer.from(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8');
     let chunk = Buffer.alloc(CHUNKSIZE);
     try {
       if (!this._elementHandle) {
         this._elementHandle = await fs.open(this._elementArray[this._index].absPath);
         this._elementSize = (await this._elementHandle.stat()).size;
       }
-      ret = await this._handle.read(chunk, 0, CHUNKSIZE, 0);
+      ret = await this._elementHandle.read(chunk, 0, CHUNKSIZE, 0);
     } catch (err) {
       // TODO Notify receiver to go to next element.
       this._index++;
@@ -220,7 +220,7 @@ class Sender {
     this._elementReadBytes += ret.bytesRead;
     if (this._elementReadBytes === this._elementSize) {
       // EOF reached. Done reading this file.
-      index++;
+      this._index++;
     }
     else if (ret.bytesRead === 0 || this._elementReadBytes > this._elementSize) {
       // File size changed. This is unexpected thus consider it an error.
@@ -247,10 +247,10 @@ class Sender {
       }
       let elementHeader = null;
       if (elementStat.isDirectory()) {
-        elementHeader = _createDirectoryHeader(element.relPath, elementStat.size);
+        elementHeader = _createDirectoryHeader(element.relPath);
       }
       else {
-        elementHeader = _createFileHeader(element.relPath);
+        elementHeader = this._createFileHeader(element.relPath, elementStat.size);
       }
       header.array.push(elementHeader);
     }

@@ -1,5 +1,6 @@
 const os = require('os');
 const PORT = 8531;
+const CHUNKSIZE = 1 * 1024 * 1024;
 const HEADER_END = '\n\n';
 const VERSION = '0.1.0';
 const STATE = {
@@ -58,4 +59,4 @@ function splitHeader(buf) {
   return null;
 }
 
-module.exports = { PORT, STATE, VERSION, HEADER_END, getMyNetworks, splitHeader };
+module.exports = { PORT, STATE, VERSION, HEADER_END, CHUNKSIZE, getMyNetworks, splitHeader };
