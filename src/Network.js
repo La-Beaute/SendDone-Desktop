@@ -50,7 +50,7 @@ function getMyNetworks() {
  * @param {Buffer} buf 
  * @returns {{header:String, buf:Buffer}|null}
  */
-function splitHeader(buf) {
+function _splitHeader(buf) {
   const endInd = buf.indexOf(HEADER_END, 0, 'utf-8');
   if (endInd >= 0) {
     const header = buf.toString('utf8', 0, endInd);
@@ -59,4 +59,4 @@ function splitHeader(buf) {
   return null;
 }
 
-module.exports = { PORT, STATE, VERSION, HEADER_END, CHUNKSIZE, getMyNetworks, splitHeader };
+module.exports = { PORT, STATE, VERSION, HEADER_END, CHUNKSIZE, getMyNetworks, _splitHeader };

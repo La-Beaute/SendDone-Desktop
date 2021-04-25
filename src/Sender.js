@@ -2,7 +2,7 @@ const net = require('net');
 const fs = require('fs').promises;
 const { Stat } = require('fs');
 const path = require('path');
-const { PORT, STATE, HEADER_END, VERSION, CHUNKSIZE, splitHeader } = require('./Network');
+const { PORT, STATE, HEADER_END, VERSION, CHUNKSIZE, _splitHeader } = require('./Network');
 
 class Sender {
   constructor() {
@@ -16,22 +16,22 @@ class Sender {
      */
     this._socket = null;
     /**
-     * @type {Array.<{absPath:String, relPath:String}>}
+     * @type {Array.<{name:String, path:String, size:number}>}
      */
-    this._elementArray = null;
+    this._itemArray = null;
     /**
-     * Size of read bytes of the element.
+     * Size of read bytes of the item.
      * @type {number}
      */
-    this._elementReadBytes = 0;
+    this._itemReadBytes = 0;
     /**
-     * Size of the element.
+     * Size of the item.
      */
-    this._elementSize = 0;
+    this._itemSize = 0;
     /**
      * @type {fs.FileHandle}
      */
-    this._elementHandle = null;
+    this._itemHandle = null;
     /**
      * @type {number} Number of bytes sent so far.
      */
@@ -41,7 +41,7 @@ class Sender {
      */
     this._speedStart = 0;
     /**
-     * @type {number} Index in elementArray.
+     * @type {number} Index in itemArray.
      */
     this._index = 0;
     /**
@@ -69,17 +69,17 @@ class Sender {
   }
 
   /**
-   * Create a new client socket with the receiver ip and send elements in the array.
+   * Create a new client socket with the receiver ip and send items in the array.
    * Call this API from UI.
-   * @param {Array.<{absPath:String, relPath:String}>} elementArray
+   * @param {Array.<{name:String, path:String}>} itemArray
    * @param {String} receiverIp 
    */
-  send(elementArray, receiverIp) {
+  send(itemArray, receiverIp) {
     this._state = STATE.SEND_REQUEST;
-    this._elementArray = elementArray;
+    this._itemArray = itemArray;
     this._index = 0;
 
-    if (this._elementArray.length === 0) {
+    if (this._itemArray.length === 0) {
       // Nothing to send and consider it send complete.
       this._state = STATE.SEND_COMPLETE;
       this._message = 'Send Complete. Nothing to sent.';
@@ -89,12 +89,12 @@ class Sender {
     this._socket = net.createConnection(PORT, receiverIp);
     this._socket.on('connect', async () => {
       console.log('client socket connected to ' + this._socket.remoteAddress);
-      let sendRequestHeader = await this._createSendRequestHeader(this._elementArray);
+      let sendRequestHeader = await this._createSendRequestHeader(this._itemArray);
       if (sendRequestHeader === null) {
         this._socket.end();
         return;
       }
-      console.log('Sender: About to send total ' + this._elementArray.length);
+      console.log('Sender: About to send total ' + this._itemArray.length);
       this._socket.write(JSON.stringify(sendRequestHeader) + HEADER_END, 'utf-8', this._onWriteError);
     });
 
@@ -103,7 +103,7 @@ class Sender {
       // Receiver always sends header only.
       let recvHeader = null;
       this._recvBuf = Buffer.concat([this._recvBuf, data]);
-      const ret = splitHeader(this._recvBuf);
+      const ret = _splitHeader(this._recvBuf);
       if (!ret) {
         // Has not received header yet. just exit the function here for more data by return.
         return;
@@ -194,7 +194,7 @@ class Sender {
 
   async _sendChunk() {
     let ret = null;
-    if (this._index >= this._elementArray.length) {
+    if (this._index >= this._itemArray.length) {
       // End of send.
       console.log('Sender: Send complete');
       this._state = STATE.SEND_COMPLETE;
@@ -204,28 +204,28 @@ class Sender {
     let header = Buffer.from(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8');
     let chunk = Buffer.alloc(CHUNKSIZE);
     try {
-      if (!this._elementHandle) {
-        this._elementHandle = await fs.open(this._elementArray[this._index].absPath);
-        this._elementSize = (await this._elementHandle.stat()).size;
+      if (!this._itemHandle) {
+        this._itemHandle = await fs.open(this._itemArray[this._index].path);
+        this._itemSize = this._itemArray[this._index].size;
       }
-      ret = await this._elementHandle.read(chunk, 0, CHUNKSIZE, null);
+      ret = await this._itemHandle.read(chunk, 0, CHUNKSIZE, null);
     } catch (err) {
-      // TODO Notify receiver to go to next element.
+      // TODO Notify receiver to go to next item.
       this._index++;
-      this._elementHandle = null;
-      this._elementReadBytes = 0;
+      this._itemHandle = null;
+      this._itemReadBytes = 0;
       return;
     }
     chunk = chunk.slice(0, ret.bytesRead);
-    this._elementReadBytes += ret.bytesRead;
-    if (this._elementReadBytes === this._elementSize) {
+    this._itemReadBytes += ret.bytesRead;
+    if (this._itemReadBytes === this._itemSize) {
       // EOF reached. Done reading this file.
       this._index++;
-      await this._elementHandle.close();
-      this._elementHandle = null;
-      this._elementReadBytes = 0;
+      await this._itemHandle.close();
+      this._itemHandle = null;
+      this._itemReadBytes = 0;
     }
-    else if (ret.bytesRead === 0 || this._elementReadBytes > this._elementSize) {
+    else if (ret.bytesRead === 0 || this._itemReadBytes > this._itemSize) {
       // File size changed. This is unexpected thus consider it an error.
       this._socket.end();
       return;
@@ -240,43 +240,43 @@ class Sender {
    */
   async _createSendRequestHeader() {
     let header = { app: 'SendDone', version: VERSION, class: 'send-request', array: [] };
-    let elementStat = null;
-    for (let element of this._elementArray) {
+    let itemStat = null;
+    for (let item of this._itemArray) {
       try {
-        elementStat = await fs.stat(element.absPath);
+        itemStat = await fs.stat(item.path);
       } catch (err) {
         this._state = STATE.ERROR;
-        this._message = 'Could not read ' + element.absPath;
+        this._message = 'Could not read ' + item.path;
         return null;
       }
-      let elementHeader = null;
-      if (elementStat.isDirectory()) {
-        elementHeader = _createDirectoryHeader(element.relPath);
+      let itemHeader = null;
+      if (itemStat.isDirectory()) {
+        itemHeader = _createDirectoryHeader(item.name);
       }
       else {
-        elementHeader = this._createFileHeader(element.relPath, elementStat.size);
+        itemHeader = this._createFileHeader(item.name, itemStat.size);
       }
-      header.array.push(elementHeader);
+      header.array.push(itemHeader);
     }
     return header;
   }
 
   /**
-   * @param {String} relPath Relative path of the element.
-   * @param {number} size Size of the element.
+   * @param {String} name name of the item.
+   * @param {number} size Size of the item.
    * @returns {{name:String, type: String, size: number}} 
    */
-  _createFileHeader(relPath, size) {
-    const header = { name: relPath, type: 'file', size: size }
+  _createFileHeader(name, size) {
+    const header = { name: name, type: 'file', size: size }
     return header;
   }
 
   /**
-   * @param {String} relPath Relative path of the element.
+   * @param {String} name name of the item.
    * @returns {{name:String, type: String}} 
    */
-  _createDirectoryHeader(relPath) {
-    const header = { name: relPath, type: 'directory' }
+  _createDirectoryHeader(name) {
+    const header = { name: name, type: 'directory' }
     return header;
   }
 }

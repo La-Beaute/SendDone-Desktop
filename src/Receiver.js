@@ -1,7 +1,7 @@
 const fs = require('fs').promises;
 const net = require('net');
 const path = require('path');
-const { PORT, STATE, VERSION, HEADER_END, CHUNKSIZE, splitHeader } = require('./Network');
+const { PORT, STATE, VERSION, HEADER_END, CHUNKSIZE, _splitHeader } = require('./Network');
 
 class Receiver {
   /**
@@ -28,22 +28,22 @@ class Receiver {
      * File handle for receiving.
      * @type {fs.FileHandle}
      */
-    this._elementHandle = null;
+    this._itemHandle = null;
     /**
-     * Array of elements. Each element is composed of name, type, and size.
+     * Array of items. Each item is composed of name, type, and size.
      * Size can be omitted if directory.
      * @type {Array.<{name:String, type:String, size:number}>}
      */
-    this._elementArray = null;
+    this._itemArray = null;
     /**
-     * this._index for elementArray.
+     * this._index for itemArray.
      * @type {number}
      */
     this._index = 0;
     /**
-     * Total written bytes for this element.
+     * Total written bytes for this item.
      */
-    this._elementWrittenBytes = 0;
+    this._itemWrittenBytes = 0;
 
     this._downloadPath = null;
 
@@ -114,7 +114,7 @@ class Receiver {
         recvBuf = Buffer.concat([recvBuf, data]);
         if (!parsedHeader) {
           // Try to parse header and save into header.
-          ret = splitHeader(recvBuf);
+          ret = _splitHeader(recvBuf);
           if (!ret) {
             // The header is still splitted. Wait for more data by return.
             return;
@@ -140,7 +140,7 @@ class Receiver {
                   console.error('Header error. Not valid.');
                   socket.end();
                 }
-                this._elementArray = header.array;
+                this._itemArray = header.array;
                 this._index = 0;
                 this._state = STATE.RECV_WAIT;
                 this._recvSocket = socket;
@@ -171,9 +171,9 @@ class Receiver {
                 if (!this._isRecvSocket(socket)) {
                   socket.end();
                 }
-                if (this._elementArray[this._index].type === 'directory') {
+                if (this._itemArray[this._index].type === 'directory') {
                   try {
-                    await fs.mkdir(path.join(this._downloadPath, this._elementArray[this._index].name));
+                    await fs.mkdir(path.join(this._downloadPath, this._itemArray[this._index].name));
                   } catch (err) {
                     throw err;
                   }
@@ -182,14 +182,14 @@ class Receiver {
                   socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteError);
                 }
                 else {
-                  if (recvBuf.length === CHUNKSIZE || recvBuf.length === this._elementArray[this._index].size - this._elementWrittenBytes) {
+                  if (recvBuf.length === CHUNKSIZE || recvBuf.length === this._itemArray[this._index].size - this._itemWrittenBytes) {
                     // One whole chunk received.
                     // Write to file and send header to sender.
                     try {
-                      if (!this._elementHandle) {
+                      if (!this._itemHandle) {
                         // First chunk of the file.
                         // Open file handle.
-                        this._elementHandle = await fs.open(path.join(this._downloadPath, this._elementArray[this._index].name), 'w');
+                        this._itemHandle = await fs.open(path.join(this._downloadPath, this._itemArray[this._index].name), 'w');
                       }
                     } catch (err) {
                       // File already exists.
@@ -198,34 +198,34 @@ class Receiver {
                       return;
                     }
                     try {
-                      await this._elementHandle.appendFile(recvBuf);
+                      await this._itemHandle.appendFile(recvBuf);
                     } catch (err) {
                       // Appending to file error.
                       // In this error, there is nothing SendDone can do about it.
                       // Better delete what has been written so far,
-                      // mark it failed, and go to next element.
+                      // mark it failed, and go to next item.
                       // TODO mark failed.
-                      await this._elementHandle.close();
+                      await this._itemHandle.close();
                       try {
-                        await fs.rm(path.join(this._downloadPath, this._elementArray[this._index].name), { force: true });
+                        await fs.rm(path.join(this._downloadPath, this._itemArray[this._index].name), { force: true });
                       } finally {
-                        this._elementHandle = null;
+                        this._itemHandle = null;
                       }
                     }
                     parsedHeader = false;
-                    this._elementWrittenBytes += recvBuf.length;
+                    this._itemWrittenBytes += recvBuf.length;
                     recvBuf = Buffer.from([]);
-                    if (this._elementWrittenBytes === this._elementArray[this._index].size) {
+                    if (this._itemWrittenBytes === this._itemArray[this._index].size) {
                       // Whole file is written.
                       this._index++;
                       parsedHeader = false;
-                      await this._elementHandle.close();
-                      this._elementHandle = null;
-                      this._elementWrittenBytes = 0;
+                      await this._itemHandle.close();
+                      this._itemHandle = null;
+                      this._itemWrittenBytes = 0;
                     }
                     // TODO Handle various states(stop, end)
                     socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
-                    if (this._index >= this._elementArray.length) {
+                    if (this._index >= this._itemArray.length) {
                       this._recvSocket.end();
                       this._state = STATE.RECV_COMPLETE;
                       this._recvSocket = null;
@@ -267,8 +267,8 @@ class Receiver {
   /**
    * @returns {Array<{name:String, type:String, size:number}>}
    */
-  getElementArray() {
-    return this._elementArray;
+  getitemArray() {
+    return this._itemArray;
   }
   /**
    * Close the server socket.
