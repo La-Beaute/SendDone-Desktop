@@ -36,6 +36,11 @@ class Receiver {
      */
     this._itemArray = null;
     /**
+     * Name of the current item.
+     * @type {String}
+     */
+    this._itemName = null;
+    /**
      * this._index for itemArray.
      * @type {number}
      */
@@ -57,6 +62,7 @@ class Receiver {
       if (err) {
         console.error('Sender: Error Occurred during writing to Socket.');
         console.error(err);
+        this._recvSocket.end();
         this._recvSocket = null;
         this._state = STATE.ERR_NET;
       }
@@ -104,24 +110,24 @@ class Receiver {
        * @type {Buffer}
        */
       let recvBuf = new Buffer.from([]);
-      let parsedHeader = false;
-      let header = null;
+      let recvHeader = null;
+      let haveParsedHeader = false;
       console.log('Receiver: connection from ' + socket.remoteAddress + ':' + socket.remotePort);
 
       socket.on('data', async (data) => {
         console.log('Receiver: data event');
         let ret = null;
         recvBuf = Buffer.concat([recvBuf, data]);
-        if (!parsedHeader) {
+        if (!haveParsedHeader) {
           // Try to parse header and save into header.
           ret = _splitHeader(recvBuf);
           if (!ret) {
             // The header is still splitted. Wait for more data by return.
             return;
           }
-          parsedHeader = true;
+          haveParsedHeader = true;
           try {
-            header = JSON.parse(ret.header);
+            recvHeader = JSON.parse(ret.header);
             recvBuf = ret.buf;
           } catch (err) {
             console.error('Header parsing error. Not JSON format.');
@@ -132,20 +138,20 @@ class Receiver {
         // Reaching here means we now have header or already have header.
         switch (this._state) {
           case STATE.IDLE:
-            switch (header.class) {
+            switch (recvHeader.class) {
               case 'scan':
+                // TODO Implement.
                 break;
               case 'send-request':
-                if (!this._validateSendRequestHeader(header)) {
+                if (!this._validateSendRequestHeader(recvHeader)) {
                   console.error('Header error. Not valid.');
                   socket.end();
                 }
-                this._itemArray = header.array;
+                this._itemArray = recvHeader.itemArray;
                 this._index = 0;
                 this._state = STATE.RECV_WAIT;
                 this._recvSocket = socket;
-                parsedHeader = false;
-                this.acceptRecv('C:/Users/dlguswo/Documents/workspace/tmp/tmp2');
+                haveParsedHeader = false;
                 break;
               default:
                 // What the hell?
@@ -154,7 +160,7 @@ class Receiver {
             }
             break;
           case STATE.RECV_WAIT:
-            switch (header.class) {
+            switch (recvHeader.class) {
               case 'scan':
                 break;
               default:
@@ -164,74 +170,101 @@ class Receiver {
             }
             break;
           case STATE.RECV:
-            switch (header.class) {
+            switch (recvHeader.class) {
               case 'scan':
                 break;
               case 'ok':
                 if (!this._isRecvSocket(socket)) {
-                  socket.end();
+                  // Destroy this malicious socket.
+                  socket.destroy();
+                  return;
                 }
-                if (this._itemArray[this._index].type === 'directory') {
+
+                if (recvBuf.length === recvHeader.size) {
+                  // One whole chunk received.
+                  // Write chunk on disk.
                   try {
-                    await fs.mkdir(path.join(this._downloadPath, this._itemArray[this._index].name));
+                    await this._itemHandle.appendFile(recvBuf);
                   } catch (err) {
-                    throw err;
+                    // Appending to file error.
+                    // In this error, there is nothing SendDone can do about it.
+                    // Better delete what has been written so far,
+                    // mark it failed, and go to next item.
+                    // TODO mark failed.
+                    try {
+                      await this._itemHandle.close();
+                      await fs.rm(path.join(this._downloadPath, this._itemName), { force: true });
+                    } finally {
+                      this._itemHandle = null;
+                    }
                   }
-                  parsedHeader = false;
+                  haveParsedHeader = false;
+                  this._itemWrittenBytes += recvBuf.length;
+                  recvBuf = Buffer.from([]);
+                  // TODO Handle various states(stop, end)
+                  socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
+                }
+                break;
+              case 'new':
+                if (!this._isRecvSocket(socket)) {
+                  // Destroy this malicious socket.
+                  socket.destroy();
+                  return;
+                }
+
+                this._itemName = recvHeader.name;
+                if (recvHeader.type === 'directory') {
+                  try {
+                    await fs.mkdir(path.join(this._downloadPath, recvHeader.name));
+                  } catch (err) {
+                    // Making directory failed.
+                    // Even making directory failed means there are serious issues.
+                    this._recvSocket.destroy();
+                    this._state = STATE.ERR_FS;
+                    return;
+                  }
+                  haveParsedHeader = false;
                   // TODO Handle various states(stop, end)
                   socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteError);
                 }
-                else {
-                  if (recvBuf.length === CHUNKSIZE || recvBuf.length === this._itemArray[this._index].size - this._itemWrittenBytes) {
-                    // One whole chunk received.
-                    // Write to file and send header to sender.
-                    try {
-                      if (!this._itemHandle) {
-                        // First chunk of the file.
-                        // Open file handle.
-                        this._itemHandle = await fs.open(path.join(this._downloadPath, this._itemArray[this._index].name), 'w');
-                      }
-                    } catch (err) {
-                      // File already exists.
-                      // TODO Implement.
-                      socket.write(JSON.stringify({ class: 'next' }) + HEADER_END);
-                      return;
-                    }
-                    try {
-                      await this._itemHandle.appendFile(recvBuf);
-                    } catch (err) {
-                      // Appending to file error.
-                      // In this error, there is nothing SendDone can do about it.
-                      // Better delete what has been written so far,
-                      // mark it failed, and go to next item.
-                      // TODO mark failed.
+                else if (recvHeader.type === 'file') {
+                  try {
+                    if (this._itemHandle) {
+                      // Close previous item handle.
                       await this._itemHandle.close();
-                      try {
-                        await fs.rm(path.join(this._downloadPath, this._itemArray[this._index].name), { force: true });
-                      } finally {
-                        this._itemHandle = null;
-                      }
                     }
-                    parsedHeader = false;
-                    this._itemWrittenBytes += recvBuf.length;
-                    recvBuf = Buffer.from([]);
-                    if (this._itemWrittenBytes === this._itemArray[this._index].size) {
-                      // Whole file is written.
-                      this._index++;
-                      parsedHeader = false;
-                      await this._itemHandle.close();
-                      this._itemHandle = null;
-                      this._itemWrittenBytes = 0;
-                    }
-                    // TODO Handle various states(stop, end)
-                    socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
-                    if (this._index >= this._itemArray.length) {
-                      this._recvSocket.end();
-                      this._state = STATE.RECV_COMPLETE;
-                      this._recvSocket = null;
-                    }
+                    this._itemHandle = await fs.open(path.join(this._downloadPath, this._itemName), 'wx');
+                  } catch (err) {
+                    // File already exists.
+                    // TODO Implement.
+                    this._itemHandle = null;
+                    haveParsedHeader = false;
+                    socket.write(JSON.stringify({ class: 'next' }) + HEADER_END);
+                    return;
                   }
+                  haveParsedHeader = false;
+                  recvBuf = Buffer.from([]);
+                  // TODO Handle various states(stop, end)
+                  socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
                 }
+                else {
+                  // What the hell?
+                  // TODO Reject bad header.
+                }
+                break;
+              case 'done':
+                if (!this._isRecvSocket(socket)) {
+                  // Destroy this malicious socket.
+                  socket.destroy();
+                  return;
+                }
+
+                if (this._itemHandle) {
+                  // Close previous item handle.
+                  await this._itemHandle.close();
+                }
+                socket.end();
+                this._state = STATE.RECV_COMPLETE;
                 break;
               case 'stop':
                 // TODO Implement
@@ -239,20 +272,18 @@ class Receiver {
               case 'end':
                 // TODO Implement
                 break;
-              default:
-                // What the hell?
-                socket.end();
-                break;
             }
             break;
+          // TODO Implement
           default:
             // What the hell?
             socket.end();
+            break;
         }
-        // TODO Handle state change.
       });
       socket.on('close', () => { socket.end(); });
     });
+
     this._serverSocket.listen(PORT, ip);
   }
 
@@ -324,7 +355,7 @@ class Receiver {
    * @returns {boolean} Return the result of the function.
    */
   rejectRecv() {
-    if (this._state !== STATE.RECV_WAIT || socket === null) {
+    if (this._state !== STATE.RECV_WAIT || this._recvSocket === null) {
       return false;
     }
     this._state = STATE.IDLE;
@@ -344,15 +375,18 @@ class Receiver {
       return false;
     if (header.version !== VERSION)
       return false;
-    if (!header.array)
+    if (!header.itemArray)
       return false;
     return true;
   }
-
+  /**
+   * Test whether this socket is connected to the current sender.
+   * @param {net.Socket} socket 
+   * @returns 
+   */
   _isRecvSocket(socket) {
     return (this._recvSocket.remoteAddress === socket.remoteAddress) && (this._recvSocket.remotePort === socket.remotePort);
   }
-
 }
 
 

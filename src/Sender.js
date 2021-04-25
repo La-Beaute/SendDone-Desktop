@@ -122,7 +122,7 @@ class Sender {
             case 'ok':
               this._state = STATE.SEND;
               // Send header and chunk.
-              this._sendChunk();
+              this._send();
               break;
             case 'no':
               this._state = STATE.SEND_REJECT;
@@ -140,7 +140,7 @@ class Sender {
           switch (recvHeader.class) {
             case 'ok':
               // Send header and chunk.
-              this._sendChunk();
+              this._send();
               break;
             case 'stop':
               // TODO Implement
@@ -150,6 +150,13 @@ class Sender {
               break
             case 'next':
               // TODO Implement
+              if (this._itemHandle) {
+                await this._itemHandle.close();
+                this._index++;
+                this._itemHandle = null;
+                this._itemReadBytes = 0;
+                this._send();
+              }
               break
             default:
               // What the hell?
@@ -192,54 +199,85 @@ class Sender {
     return this._state;
   }
 
-  async _sendChunk() {
-    let ret = null;
+  async _send() {
+    let header = null;
     if (this._index >= this._itemArray.length) {
       // End of send.
       console.log('Sender: Send complete');
       this._state = STATE.SEND_COMPLETE;
-      this._socket.end();
+      header = { class: 'done' };
+      this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', () => {
+        this._socket.end();
+      });
       return;
     }
-    let header = Buffer.from(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8');
-    let chunk = Buffer.alloc(CHUNKSIZE);
-    try {
-      if (!this._itemHandle) {
-        this._itemHandle = await fs.open(this._itemArray[this._index].path);
-        this._itemSize = this._itemArray[this._index].size;
+    if (!this._itemHandle) {
+      // Send 'new' header.
+      try {
+        let itemStat = await fs.stat(this._itemArray[this._index].path);
+        if (itemStat.isDirectory()) {
+          header = {
+            class: 'new',
+            name: this._itemArray[this._index].name,
+            type: 'directory'
+          };
+        }
+        else {
+          this._itemHandle = await fs.open(this._itemArray[this._index].path);
+          this._itemSize = itemStat.size;
+          this._itemReadBytes = 0;
+          header = {
+            class: 'new',
+            name: this._itemArray[this._index].name,
+            type: 'file',
+            size: itemStat.size
+          };
+        }
+      } catch (err) {
+        // Go to next item.
+        this._goToNextItem();
+        return;
       }
-      ret = await this._itemHandle.read(chunk, 0, CHUNKSIZE, null);
-    } catch (err) {
-      // TODO Notify receiver to go to next item.
-      this._index++;
-      this._itemHandle = null;
-      this._itemReadBytes = 0;
-      return;
+      header = JSON.stringify(header);
+      this._socket.write(Buffer.from(header + HEADER_END, 'utf-8'), this._onWriteError);
     }
-    chunk = chunk.slice(0, ret.bytesRead);
-    this._itemReadBytes += ret.bytesRead;
-    if (this._itemReadBytes === this._itemSize) {
-      // EOF reached. Done reading this file.
-      this._index++;
-      await this._itemHandle.close();
-      this._itemHandle = null;
-      this._itemReadBytes = 0;
+    else {
+      // Send 'ok' like header.
+      try {
+        let chunk = Buffer.alloc(CHUNKSIZE);
+        let ret = await this._itemHandle.read(chunk, 0, CHUNKSIZE, null);
+        this._itemReadBytes += ret.bytesRead;
+        chunk = chunk.slice(0, ret.bytesRead);
+        if (this._itemReadBytes === this._itemSize) {
+          // EOF reached. Done reading this item.
+          await this._itemHandle.close();
+          this._itemHandle = null;
+          this._itemReadBytes = 0;
+          this._index++;
+        }
+        else if (ret.bytesRead === 0 || this._itemReadBytes > this._itemSize) {
+          // File size changed. This is unexpected thus consider it an error.
+          this._goToNextItem();
+          return;
+        }
+        header = { class: 'ok', size: ret.bytesRead };
+        header = JSON.stringify(header);
+        this._socket.write(Buffer.concat([Buffer.from(header + HEADER_END, 'utf-8'), chunk]), this._onWriteError);
+      } catch (err) {
+        // Go to next item.
+        this._goToNextItem();
+        return;
+      }
     }
-    else if (ret.bytesRead === 0 || this._itemReadBytes > this._itemSize) {
-      // File size changed. This is unexpected thus consider it an error.
-      this._socket.end();
-      return;
-    }
-    this._socket.write(Buffer.concat([header, chunk]), this._onWriteError);
   }
 
   /**
    * Create and return send request header.
    * Return null on Any Error.
-   * @returns {Promise<{app:String, version: String, class: String, array:Array.<{name:String, type:String, size:number}>}>}
+   * @returns {Promise<{app:String, version: String, class: String, itemArray:Array.<{name:String, type:String, size:number}>}>}
    */
   async _createSendRequestHeader() {
-    let header = { app: 'SendDone', version: VERSION, class: 'send-request', array: [] };
+    let header = { app: 'SendDone', version: VERSION, class: 'send-request', itemArray: [] };
     let itemStat = null;
     for (let item of this._itemArray) {
       try {
@@ -256,7 +294,7 @@ class Sender {
       else {
         itemHeader = this._createFileHeader(item.name, itemStat.size);
       }
-      header.array.push(itemHeader);
+      header.itemArray.push(itemHeader);
     }
     return header;
   }
@@ -278,6 +316,18 @@ class Sender {
   _createDirectoryHeader(name) {
     const header = { name: name, type: 'directory' }
     return header;
+  }
+
+  /**
+   * Go to next item and notify receiver. Call this only when error occurred for the current item.
+   */
+  _goToNextItem() {
+    this._index++;
+    this._itemHandle = null;
+    this._itemReadBytes = 0;
+    setTimeout(() => {
+      this._send();
+    }, 0);
   }
 }
 

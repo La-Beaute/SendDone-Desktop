@@ -149,7 +149,7 @@ If sender wants to send for the first time for this item, header looks like this
 | `class` | Always `new`. It means sender want to send this item. |
 | `name` | Name of the item. |
 | `type` | Type of the item. Either `file` or `directory`. |
-| `size` | **Size of the whole item size.**<br>Omitted if the item is directory. |
+| `size` | **Size of the whole item.**<br>Omitted if the item is directory. |
 <br>
 
 When sender sends actual contents of the item, header looks like the following.
@@ -163,7 +163,7 @@ When sender sends actual contents of the item, header looks like the following.
 ```
 | Key | Description |
 | :--- | :--- |
-| `class` | `ok`: Sender wants to keep sending. Chunk is followed after the header.<br>`new`: Sender sends a new item.<br>`done`: Sender sent all items thus notifies receiver completion.<br>`stop`: Sender wants to stop for a time.<br>`end`: Sender wants to end permanently.<br> |
+| `class` | `ok`: Sender wants to keep sending. Chunk is followed after the header.<br>`done`: Sender sent all items thus notifies receiver completion.<br>`stop`: Sender wants to stop for a time.<br>`end`: Sender wants to end permanently.<br> |
 | `size` | **Size of the following chunk.** |
 <br>
 
