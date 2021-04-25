@@ -132,22 +132,8 @@ and receiver iterates until the received chunk size is equal to the size in the 
 <br>
 
 ## Sender
-Sender always send a chunk with header preceding.<br>
-But Sender can send header only for items such as directories or empty files.
-<br>
-
-```json
-{
-  "class": "new",
-  "size": 1234,
-}
-```
-| Key | Description |
-| :--- | :--- |
-| `class` | `ok`: Sender wants to keep sending.<br>`new`: Sender sends a new item.<br>`stop`: Sender wants to stop for a time.<br>`end`: Sender wants to end permanently.<br> |
-| `size` | Size of the following chunk(Contents of the item). |
-
-If the `class` values is `new`, header looks a little different.
+Sender always sends header with or without chunk(Actual contents of items).<br>
+If sender wants to send for the first time for this item, header looks like this:
 <br>
 
 ```json
@@ -160,12 +146,29 @@ If the `class` values is `new`, header looks a little different.
 ```
 | Key | Description |
 | :--- | :--- |
+| `class` | Always `new`. It means sender want to send this item. |
 | `name` | Name of the item. |
 | `type` | Type of the item. Either `file` or `directory`. |
-| `size` | **Size of the following chunk(Not the file size!).**<br>Omitted if the item is directory. |
+| `size` | **Size of the whole item size.**<br>Omitted if the item is directory. |
+<br>
+
+When sender sends actual contents of the item, header looks like the following.
+<br>
+
+```json
+{
+  "class": "ok",
+  "size": 1234,
+}
+```
+| Key | Description |
+| :--- | :--- |
+| `class` | `ok`: Sender wants to keep sending. Chunk is followed after the header.<br>`new`: Sender sends a new item.<br>`done`: Sender sent all items thus notifies receiver completion.<br>`stop`: Sender wants to stop for a time.<br>`end`: Sender wants to end permanently.<br> |
+| `size` | **Size of the following chunk.** |
+<br>
 
 ## Receiver
-While Receiving, receiver always send header only.<br>
+While Receiving, receiver sends header only.<br>
 Receivers header looks like this.
 <br>
 
@@ -176,4 +179,4 @@ Receivers header looks like this.
 ```
 | Key | Description |
 | :--- | :--- |
-| `class` | `ok`: Receiver is good to receiver another chunk.<br>`next`: Receiver wants to skip this item because of unwanted or some errors with the item.<br>`stop`: Receiver wants to stop for a time.<br>`end`: Receiver wants to end permanently.<br> |
+| `class` | `ok`: Receiver is good to receiver another chunk or next item.<br>`next`: Receiver wants to skip this item because of unwanted or some errors with the item.<br>`stop`: Receiver wants to stop for a time.<br>`end`: Receiver wants to end permanently.<br> |
