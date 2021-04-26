@@ -2,10 +2,23 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const network = require('./Network');
+const { Sender } = require('./Sender');
+const { Receiver } = require('./Receiver');
 const isDev = require('electron-is-dev');
-// Enable remote module to make life easier.
 
 var mainWindow = null;
+/**
+ * @type {Sender}
+ */
+var sender = null;
+/**
+ * @type {Receiver}
+ */
+var receiver = null;
+/**
+ * @type {String}
+ */
+var myId = '';
 
 function createWindow() {
   // Create the browser window.
@@ -63,8 +76,8 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', function () {
-  if (network.isServerSocketListening())
-    network.closeServerSocket();
+  if (receiver && receiver.isExposed())
+    receiver.closeServerSocket();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -91,7 +104,7 @@ ipcMain.handle('get-networks', () => {
 
 ipcMain.handle('init-server-socket', (event, arg) => {
   const ip = arg;
-  network.initServerSocket(ip);
+  receiver = new Receiver(ip, myId);
 })
 
 ipcMain.handle('close-server-socket', () => {
@@ -100,4 +113,8 @@ ipcMain.handle('close-server-socket', () => {
 
 ipcMain.handle('is-server-socket-open', () => {
   return network.isServerSocketListening();
+})
+
+ipcMain.handle('set-id', (event, arg) => {
+  myId = arg;
 })
