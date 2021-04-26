@@ -48,7 +48,8 @@ If scanner successfully connects to an IP address, it sends a header like the fo
   "app": "SendDone",
   "version": "0.1.0",
   "class": "scan",
-  "id": "device_1"
+  "id": "device_1",
+  "os": "win32"
 }
 ```
 Each field has its own meaning, and the meaning is clear from its name.
@@ -61,7 +62,8 @@ then it sends back this header to the scanner:
   "app": "SendDone",
   "version": "0.1.0",
   "class": "ok",
-  "id": "device_2"
+  "id": "device_2",
+  "os": "linux"
 }
 ```
 <br>

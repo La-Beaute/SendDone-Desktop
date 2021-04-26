@@ -1,15 +1,24 @@
 const fs = require('fs').promises;
 const net = require('net');
 const path = require('path');
-const { PORT, STATE, VERSION, HEADER_END, CHUNKSIZE, _splitHeader } = require('./Network');
+const { PORT, STATE, VERSION, HEADER_END, CHUNKSIZE, OS, _splitHeader, } = require('./Network');
 
 class Receiver {
   /**
    * 
    * @param {string} ip 
    */
-  constructor(ip) {
+  constructor(ip, id) {
+    if (!id) {
+      // Cannot expose me without id.
+      this._state = STATE.ERR_FS;
+      return;
+    }
     this._state = STATE.IDLE;
+    /**
+     * @type {String} ID of this device.
+     */
+    this._myId = id;
     /**
      * @type {net.Server}
      */
@@ -135,13 +144,18 @@ class Receiver {
             return;
           }
         }
+
+        if (recvHeader.class === 'scan') {
+          // Always responds to scan no matter the current state.
+          this._handleScan(socket);
+          socket.end();
+          return;
+        }
+
         // Reaching here means we now have header or already have header.
         switch (this._state) {
           case STATE.IDLE:
             switch (recvHeader.class) {
-              case 'scan':
-                // TODO Implement.
-                break;
               case 'send-request':
                 if (!this._validateSendRequestHeader(recvHeader)) {
                   console.error('Header error. Not valid.');
@@ -161,18 +175,13 @@ class Receiver {
             break;
           case STATE.RECV_WAIT:
             switch (recvHeader.class) {
-              case 'scan':
-                break;
               default:
                 // What the hell?
                 socket.end();
                 return;
             }
-            break;
           case STATE.RECV:
             switch (recvHeader.class) {
-              case 'scan':
-                break;
               case 'ok':
                 if (!this._isRecvSocket(socket)) {
                   // Destroy this malicious socket.
@@ -378,6 +387,21 @@ class Receiver {
     if (!header.itemArray)
       return false;
     return true;
+  }
+
+  /**
+   * 
+   * @param {net.Socket} socket 
+   */
+  _handleScan(socket) {
+    let header = {
+      app: "SendDone",
+      version: VERSION,
+      class: 'ok',
+      id: this._myId,
+      os: OS
+    };
+    socket.write(JSON.stringify(header) + HEADER_END, 'utf-8');
   }
   /**
    * Test whether this socket is connected to the current sender.
