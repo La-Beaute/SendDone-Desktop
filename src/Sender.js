@@ -174,9 +174,12 @@ class Sender {
       this._socket.end();
     });
 
-    // TODO Handle errors.
-    // this._socket.on('error', (err) => {
-    // })
+    this._socket.on('error', (err) => {
+      if (err.code === 'ETIMEDOUT') {
+        console.error('Sender: failed to connect due to timeout');
+      }
+      this._state = STATE.ERR_NET;
+    })
   }
 
   /**
