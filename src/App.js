@@ -1,82 +1,63 @@
-import React, { useState, useEffect } from 'react';
-import './App.css';
-// Below lines are importing modules from window object.
-// Look at 'preload.js' for more understanding.
-// const networking = window.networking;
-const ipcRenderer = window.ipcRenderer;
+import React,{Component} from 'react';
+import View  from './components/View'
 
-function App() {
-  const [fileList, setFileList] = useState([]);
-  const [ip, setIp] = useState(null);
-  const [networks, setNetworks] = useState([]);
-  const [serverSocketOpen, setServerSocketOpen] = useState(false);
-
-  // Select local files.
-  const openFile = async () => {
-    var ret = await ipcRenderer.invoke('open-file');
-    if (ret)
-      setFileList([...fileList, ...ret]);
-  };
-
-  // Select local directories.
-  const openDirectory = async () => {
-    var ret = await ipcRenderer.invoke('open-directory');
-    if (ret)
-      setFileList([...fileList, ...ret]);
-  };
-
-  const listFiles = fileList.map((file) => {
-    return <div className="FileElement">{file}</div>;
-  });
-
-  const getNetworks = async () => {
-    const ret = await ipcRenderer.invoke('get-networks');
-    if (ret)
-      setNetworks([...ret]);
+class App extends Component {
+  constructor(props){
+    super(props);
   }
-
-  const listNetworks = networks.map((network) => {
-    return <div key={network.ip}>{network.name} {network.ip} {network.netmask}</div>;
-  });
-
-  const initServerSocket = async () => {
-    ipcRenderer.invoke('init-server-socket', networks[0].ip);
+  render() {
+    return(
+      <div className = 'App'>
+        <View {...viewData}></View>
+      </div>
+    );
   }
+}
 
-  const closeServerSocket = async () => {
-    ipcRenderer.invoke('close-server-socket');
-  }
-
-  // useEffect is something like componentDidMount in React class component.
-  // Add something that needs to be called after loading this component such as getting the network list.
-  useEffect(() => {
-    const intervalFun = async () => {
-      const ret = await ipcRenderer.invoke('is-server-socket-open');
-      setServerSocketOpen(ret);
-      getNetworks();
-    }
-    intervalFun();
-    const intervalHandler = setInterval(() => { intervalFun(); }, 1000);
-    return () => clearInterval(intervalHandler);
-  }, []);
-
-  return (
-    <div className="App">
-      <div className="Head">
-        {listNetworks}
-      </div>
-      <div className="Box1">
-        <button onClick={openFile}>Open File</button>
-        <button onClick={openDirectory}>Open Directory</button>
-        <button onClick={initServerSocket}>Open Server</button>
-        <button onClick={closeServerSocket}>Close Server</button>
-        <div className={serverSocketOpen ? "ServerStatOpen" : "ServerStatClose"} />
-      </div>
-      <div className="FileList">
-        {listFiles}
-      </div>
-    </div>
-  );
+const viewData = {
+  backgroundColorGradient: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/background-color-gradient@1x.png",
+  android: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/image-35@2x.png",
+  image36: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/image-36@2x.png",
+  iphone: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/image-35@2x.png",
+  image362: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/image-36-1@2x.png",
+  desktop: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/desktop@2x.png",
+  id3_ip: "192.168.0.7",
+  id3: "ID3",
+  id2_ip: "192.168.0.6",
+  id2: "ID2",
+  id1_ip: "192.168.0.5",
+  id1: "ID1",
+  scan: "② SCAN",
+  Folder: "+ FOLDER",
+  File: "+ FILE",
+  xdelete: "Delete",
+  file1_txt: "     /home/th/memo3.txt",
+  file3: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-1@2x.png",
+  overlapGroup5: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-1@2x.png",
+  vector2: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-3@2x.png",
+  vector3: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-4@2x.png",
+  vector4: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-3@2x.png",
+  vector5: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-4@2x.png",
+  file3_txt: "/home/th/memo2.txt",
+  file2_txt: "/home/th/memo1.txt",
+  folder1_txt: "/home/th",
+  vector6: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-9@2x.png",
+  vector7: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-10@2x.png",
+  text1: "① FILE SELECT",
+  vector8: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-11@2x.png",
+  vector9: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-12@2x.png",
+  vector10: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-13@2x.png",
+  overlapGroup9: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-14@2x.png",
+  vector11: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-15@2x.png",
+  vector12: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-16@2x.png",
+  expose: "Expose",
+  setting: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-17@2x.png",
+  vector13: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-18@2x.png",
+  info: <>Hi, asdf<br />192.168.0.2</>,
+  title: "SendDone",
+  place: " SEND",
+  file2Props: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-7@2x.png",
+  file22Props: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-7@2x.png",
 };
 
 export default App;
