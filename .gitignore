@@ -6,8 +6,8 @@
 .pnp.js
 
 # testing
-/src/test.js
-/src/test_receiver.js
+# /src/test_receive.js
+# /src/test_send.js
 file
 
 # production

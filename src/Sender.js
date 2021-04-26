@@ -99,7 +99,6 @@ class Sender {
     });
 
     this._socket.on('data', async (data) => {
-      console.log('Sender: data event');
       // Receiver always sends header only.
       let recvHeader = null;
       this._recvBuf = Buffer.concat([this._recvBuf, data]);
@@ -151,12 +150,12 @@ class Sender {
             case 'next':
               // TODO Implement
               if (this._itemHandle) {
+                // _itemHandle is not null only when sending the current item is not finished.
+                // Thus checking it will prevent any unexpected skip.
                 await this._itemHandle.close();
-                this._index++;
-                this._itemHandle = null;
-                this._itemReadBytes = 0;
-                this._send();
+                this._resetItem();
               }
+              this._send();
               break
             default:
               // What the hell?
@@ -221,6 +220,7 @@ class Sender {
             name: this._itemArray[this._index].name,
             type: 'directory'
           };
+          this._resetItem();
         }
         else {
           this._itemHandle = await fs.open(this._itemArray[this._index].path);
@@ -235,14 +235,15 @@ class Sender {
         }
       } catch (err) {
         // Go to next item.
-        this._goToNextItem();
+        this._resetItem();
+        setTimeout(() => { this._send(); }, 0);
         return;
       }
       header = JSON.stringify(header);
       this._socket.write(Buffer.from(header + HEADER_END, 'utf-8'), this._onWriteError);
     }
     else {
-      // Send 'ok' like header.
+      // Send a chunk with header.
       try {
         let chunk = Buffer.alloc(CHUNKSIZE);
         let ret = await this._itemHandle.read(chunk, 0, CHUNKSIZE, null);
@@ -251,21 +252,20 @@ class Sender {
         if (this._itemReadBytes === this._itemSize) {
           // EOF reached. Done reading this item.
           await this._itemHandle.close();
-          this._itemHandle = null;
-          this._itemReadBytes = 0;
-          this._index++;
+          this._resetItem();
         }
         else if (ret.bytesRead === 0 || this._itemReadBytes > this._itemSize) {
           // File size changed. This is unexpected thus consider it an error.
-          this._goToNextItem();
-          return;
+          await this._itemHandle.close();
+          throw new Error('File Changed');
         }
         header = { class: 'ok', size: ret.bytesRead };
         header = JSON.stringify(header);
         this._socket.write(Buffer.concat([Buffer.from(header + HEADER_END, 'utf-8'), chunk]), this._onWriteError);
       } catch (err) {
         // Go to next item.
-        this._goToNextItem();
+        this._resetItem();
+        setTimeout(() => { this._send(); }, 0);
         return;
       }
     }
@@ -289,7 +289,7 @@ class Sender {
       }
       let itemHeader = null;
       if (itemStat.isDirectory()) {
-        itemHeader = _createDirectoryHeader(item.name);
+        itemHeader = this._createDirectoryHeader(item.name);
       }
       else {
         itemHeader = this._createFileHeader(item.name, itemStat.size);
@@ -319,15 +319,12 @@ class Sender {
   }
 
   /**
-   * Go to next item and notify receiver. Call this only when error occurred for the current item.
+   * Reset the item related variable to go to next item.
    */
-  _goToNextItem() {
+  _resetItem() {
     this._index++;
     this._itemHandle = null;
     this._itemReadBytes = 0;
-    setTimeout(() => {
-      this._send();
-    }, 0);
   }
 }
 

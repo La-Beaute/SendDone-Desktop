@@ -7,6 +7,7 @@ class Receiver {
   /**
    * 
    * @param {string} ip 
+   * @param {string} id 
    */
   constructor(ip, id) {
     if (!id) {
@@ -124,7 +125,6 @@ class Receiver {
       console.log('Receiver: connection from ' + socket.remoteAddress + ':' + socket.remotePort);
 
       socket.on('data', async (data) => {
-        console.log('Receiver: data event');
         let ret = null;
         recvBuf = Buffer.concat([recvBuf, data]);
         if (!haveParsedHeader) {
@@ -226,15 +226,21 @@ class Receiver {
                   try {
                     await fs.mkdir(path.join(this._downloadPath, recvHeader.name));
                   } catch (err) {
-                    // Making directory failed.
-                    // Even making directory failed means there are serious issues.
-                    this._recvSocket.destroy();
-                    this._state = STATE.ERR_FS;
+                    if (err.code === 'EEXIST') {
+                      socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
+                    }
+                    else {
+                      // Making directory failed.
+                      // Even making directory failed means there are serious issues.
+                      this._recvSocket.destroy();
+                      this._state = STATE.ERR_FS;
+                    }
+                    haveParsedHeader = false;
                     return;
                   }
                   haveParsedHeader = false;
                   // TODO Handle various states(stop, end)
-                  socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteError);
+                  socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
                 }
                 else if (recvHeader.type === 'file') {
                   try {
