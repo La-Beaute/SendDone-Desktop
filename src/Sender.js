@@ -5,7 +5,19 @@ const path = require('path');
 const { PORT, STATE, HEADER_END, VERSION, CHUNKSIZE, _splitHeader } = require('./Network');
 
 class Sender {
-  constructor() {
+  /**
+   * 
+   * @param {String} myId 
+   */
+  constructor(myId) {
+    if (!myId) {
+      this._state = STATE.ERR_FS;
+      return;
+    }
+    /**
+     * @type {String} my id.
+     */
+    this._myId = myId;
     this._state = STATE.IDLE;
     /**
      * Message describing the most recent activity or errors.
@@ -156,7 +168,7 @@ class Sender {
                 this._resetItem();
               }
               this._send();
-              break
+              break;
             default:
               // What the hell?
               console.error('header class value error: Unexpected value ' + recvHeader.class);
@@ -280,7 +292,7 @@ class Sender {
    * @returns {Promise<{app:String, version: String, class: String, itemArray:Array.<{name:String, type:String, size:number}>}>}
    */
   async _createSendRequestHeader() {
-    let header = { app: 'SendDone', version: VERSION, class: 'send-request', itemArray: [] };
+    let header = { app: 'SendDone', version: VERSION, class: 'send-request', id: this._myId, itemArray: [] };
     let itemStat = null;
     for (let item of this._itemArray) {
       try {

@@ -7,19 +7,18 @@ class Receiver {
   /**
    * 
    * @param {string} ip 
-   * @param {string} id 
+   * @param {string} myId 
    */
-  constructor(ip, id) {
-    if (!id) {
-      // Cannot expose me without id.
+  constructor(ip, myId) {
+    if (!myId) {
       this._state = STATE.ERR_FS;
       return;
     }
     this._state = STATE.IDLE;
     /**
-     * @type {String} ID of this device.
+     * @type {String} my id.
      */
-    this._myId = id;
+    this._myId = myId;
     /**
      * @type {net.Server}
      */

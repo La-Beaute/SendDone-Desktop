@@ -72,10 +72,10 @@ function _splitHeader(buf) {
  * 
  * @param {String} ip 
  * @param {String} netmask 
- * @param {String} id 
+ * @param {String} myId 
  * @param {scanCallback} callback Callback function to call when found a device.
  */
-function scan(ip, netmask, id, callback) {
+function scan(ip, netmask, myId, callback) {
   let currentIp = _IpStringToNumber(ip) & _IpStringToNumber(netmask);
   let broadcastIp = _IpStringToNumber(_IpBroadcastIp(ip, netmask));
   let ipAsNumber = _IpStringToNumber(ip);
@@ -89,7 +89,7 @@ function scan(ip, netmask, id, callback) {
           app: "SendDone",
           version: VERSION,
           class: "scan",
-          id: id,
+          id: myId,
           os: OS
         };
         socket.write(JSON.stringify(header) + HEADER_END);
