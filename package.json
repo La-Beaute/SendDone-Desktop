@@ -8,17 +8,18 @@
     "web-vitals": "^1.1.0"
   },
   "devDependencies": {
-    "react": "^17.0.1",
-    "react-dom": "^17.0.1",
     "electron": "^12.0.2",
-    "electron-builder": "^22.10.5"
+    "electron-builder": "^22.10.5",
+    "mocha": "^8.3.2",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
   },
   "homepage": "./",
   "main": "src/main.js",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
+    "test": "mocha src/Network.test.js",
     "eject": "react-scripts eject",
     "electron": "electron --trace-warnings .",
     "builder": "npm run build && electron-builder"
