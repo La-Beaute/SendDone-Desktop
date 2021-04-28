@@ -37,22 +37,26 @@ const acceptReceiving = (done) => {
   if (receiver.getState() === network.STATE.RECV_WAIT) {
     console.log('Accepting receiving.');
     receiver.acceptRecv(tmp2);
+    resetReceiver(done);
   }
   else if (receiver.getState() === network.STATE.IDLE) {
-    setTimeout(acceptReceiving, 10);
+    setTimeout(() => { acceptReceiving(done) }, 10);
   }
   else {
     done(new Error('receiver state is not valid:', receiver.getState()));
   }
 };
 
-async function resetReceiver(orig, dest, done) {
+async function resetReceiver(done) {
   if (receiver.getState() === network.STATE.RECV_DONE) {
     receiver.setStateIdle();
     done();
   }
+  else if (receiver.getState() === network.STATE.RECV) {
+    setTimeout(() => { resetReceiver(done) }, 10);
+  }
   else {
-    setTimeout(() => { resetReceiver(orig, dest, done) }, 10);
+    done(new Error('receiver state is not valid:', receiver.getState()));
   }
 }
 
@@ -73,18 +77,15 @@ describe('Send one file', () => {
 
   after(async () => {
     await delTmpDir();
-    receiver.closeServerSocket();
   });
 
   it('Send 1KB size file', (done) => {
     const orig = path.join(tmp1, '1KB');
-    const dest = path.join(tmp2, '1KB');
     const buf = crypto.randomBytes(1024);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
       sender.send([{ name: '1KB', path: orig }], receiverIp);
       acceptReceiving(done);
-      resetReceiver(orig, dest, done);
     });
   }).timeout(1000);
 
@@ -102,7 +103,6 @@ describe('Send one file', () => {
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
       sender.send([{ name: '513MB', path: orig }], receiverIp);
       acceptReceiving(done);
-      resetReceiver(orig, dest, done);
     });
   }).timeout(200000);
 
@@ -120,7 +120,6 @@ describe('Send one file', () => {
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
       sender.send([{ name: '0B', path: orig }], receiverIp);
       acceptReceiving(done);
-      resetReceiver(orig, dest, done);
     });
   }).timeout(1000);
 
@@ -129,4 +128,78 @@ describe('Send one file', () => {
     const dest = path.join(tmp2, '0B');
     return await diffFiles(orig, dest);
   }).timeout(1000);
+})
+
+describe('Send directories', () => {
+  before(async () => {
+    await delTmpDir();
+    if (!(await mkTmpDir())) {
+      console.error('Failed Upon Making tmporary directories!');
+      return;
+    }
+  });
+
+  after(async () => {
+    await delTmpDir();
+    receiver.closeServerSocket();
+  });
+
+  it('Send one directory', (done) => {
+    const orig = path.join(tmp1, 'dir');
+
+    fs.mkdir(orig).then(() => {
+      sender.send([{ name: 'dir', path: orig }], receiverIp);
+      acceptReceiving(done);
+    });
+  });
+
+  it('Check one directory', async () => {
+    const dest = path.join(tmp2, 'dir');
+    await fs.access(dest);
+    await fs.rmdir(dest);
+  });
+
+  it('Send three directories', (done) => {
+    let arr = Array(3);
+    async function tmp() {
+      for (let i = 0; i < 3; ++i) {
+        arr[i] = path.join(tmp1, 'dir' + i);
+        await fs.mkdir(arr[i]);
+      }
+      return;
+    }
+    tmp().then(() => {
+      for (let i = 0; i < 3; ++i) {
+        arr[i] = { name: 'dir' + i, path: arr[i] };
+      }
+      sender.send(arr, receiverIp);
+      acceptReceiving(done);
+    })
+  });
+
+  it('Check three directories', async () => {
+    for (let i = 0; i < 3; ++i) {
+      let dest = path.join(tmp2, 'dir' + i);
+      await fs.access(dest);
+    }
+  });
+
+  it('Send recursive directories', (done) => {
+    const orig = path.join(tmp1, 'dirr');
+    const orig1 = path.join(tmp1, 'dirr', 'dirrr');
+
+    fs.mkdir(orig).then(() => {
+      fs.mkdir(orig1).then(() => {
+        sender.send([{ name: 'dirr', path: orig }, { name: 'dirr/dirrr', path: orig1 }], receiverIp);
+        acceptReceiving(done);
+      });
+    });
+  });
+
+  it('Check recursive directories', async () => {
+    const dest = path.join(tmp2, 'dirr');
+    const dest1 = path.join(tmp2, 'dirr', 'dirrr');
+    await fs.access(dest);
+    await fs.rmdir(dest1);
+  });
 })

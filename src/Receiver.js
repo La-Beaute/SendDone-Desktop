@@ -59,6 +59,11 @@ class Receiver {
      */
     this._itemWrittenBytes = 0;
     /**
+     * Number of received items so far.
+     * @type {number} 
+     */
+    this._numRecvItem = 0;
+    /**
      * @type {String}
      */
     this._downloadPath = null;
@@ -247,6 +252,7 @@ class Receiver {
                     }
                     haveParsedHeader = false;
                     this._itemSize = 0;
+                    this._numRecvItem++;
                     return;
                   }
                   haveParsedHeader = false;
@@ -256,6 +262,7 @@ class Receiver {
                 else if (recvHeader.type === 'file') {
                   try {
                     if (this._itemHandle) {
+                      this._numRecvItem++;
                       // Close previous item handle.
                       await this._itemHandle.close();
                     }
@@ -265,7 +272,7 @@ class Receiver {
                     // TODO Implement.
                     this._itemHandle = null;
                     haveParsedHeader = false;
-                    socket.write(JSON.stringify({ class: 'next' }) + HEADER_END);
+                    socket.write(JSON.stringify({ class: 'next' }) + HEADER_END, this._onWriteRecvError);
                     return;
                   }
                   haveParsedHeader = false;
@@ -341,13 +348,6 @@ class Receiver {
     this._prevSpeedTime = now;
     return this._prevSpeed;
   }
-
-  /**
-   * Return the current state
-   */
-  getState() {
-    return this._state;
-  }
   /**
    * Return the current item progress out of 100.
    * @returns {number}
@@ -355,6 +355,20 @@ class Receiver {
   getItemProgress() {
     return (this._itemSize === 0 ? 100 : Math.floor(this._itemWrittenBytes / this._itemSize * 100));
   }
+  /**
+   * Return a string representing the total progress.
+   */
+  getTotalProgress() {
+    return this._numRecvItem + '/' + this._itemArray.length;
+  }
+
+  /**
+   * Return the current state
+   */
+  getState() {
+    return this._state;
+  }
+
 
   /**
    * Set the current state to IDLE.
@@ -375,6 +389,7 @@ class Receiver {
     }
     this._state = STATE.RECV;
     this._downloadPath = downloadPath;
+    this._numRecvItem = 0;
     this._speedBytes = 0;
     const header = { class: 'ok' };
     this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteRecvError);

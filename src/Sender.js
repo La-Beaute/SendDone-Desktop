@@ -216,13 +216,18 @@ class Sender {
     this._prevSpeedTime = now;
     return this._prevSpeed;
   }
-
   /**
    * Return the current item progress out of 100.
    * @returns {number}
    */
   getItemProgress() {
     return (this._itemSize === 0 ? 100 : Math.floor(this._itemSentBytes / this._itemSize * 100));
+  }
+  /**
+   * Return a string representing the total progress.
+   */
+  getTotalProgress() {
+    return this._index + '/' + this._itemArray.length;
   }
 
   /**
