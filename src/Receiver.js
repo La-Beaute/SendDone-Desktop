@@ -50,16 +50,34 @@ class Receiver {
      */
     this._itemName = null;
     /**
-     * this._index for itemArray.
+     * Size of the current item.
      * @type {number}
      */
-    this._index = 0;
+    this._itemSize = 0;
     /**
-     * Total written bytes for this item.
+     * Size of received bytes for this item.
      */
     this._itemWrittenBytes = 0;
-
+    /**
+     * @type {String}
+     */
     this._downloadPath = null;
+
+    /**
+     * The # of bytes after the previous speed measure. 
+     * @type {number}
+     */
+    this._speedBytes = 0;
+    /**
+     * Previous speed measure time in millisecond.
+     * @type {number} 
+     */
+    this._prevSpeedTime = null;
+    /**
+     * Previous measured speed.
+     * @type {number} 
+     */
+    this._prevSpeed = 0;
 
     this._onWriteError = (err) => {
       if (err) {
@@ -161,7 +179,6 @@ class Receiver {
                   socket.end();
                 }
                 this._itemArray = recvHeader.itemArray;
-                this._index = 0;
                 this._state = STATE.RECV_WAIT;
                 this._recvSocket = socket;
                 haveParsedHeader = false;
@@ -180,14 +197,13 @@ class Receiver {
                 return;
             }
           case STATE.RECV:
+            if (!this._isRecvSocket(socket)) {
+              // Destroy this malicious socket.
+              socket.destroy();
+              return;
+            }
             switch (recvHeader.class) {
               case 'ok':
-                if (!this._isRecvSocket(socket)) {
-                  // Destroy this malicious socket.
-                  socket.destroy();
-                  return;
-                }
-
                 if (recvBuf.length === recvHeader.size) {
                   // One whole chunk received.
                   // Write chunk on disk.
@@ -198,7 +214,7 @@ class Receiver {
                     // In this error, there is nothing SendDone can do about it.
                     // Better delete what has been written so far,
                     // mark it failed, and go to next item.
-                    // TODO mark failed.
+                    // TODO mark the item failed.
                     try {
                       await this._itemHandle.close();
                       await fs.rm(path.join(this._downloadPath, this._itemName), { force: true });
@@ -207,6 +223,7 @@ class Receiver {
                     }
                   }
                   haveParsedHeader = false;
+                  this._speedBytes += recvBuf.length;
                   this._itemWrittenBytes += recvBuf.length;
                   recvBuf = Buffer.from([]);
                   // TODO Handle various states(stop, end)
@@ -214,12 +231,6 @@ class Receiver {
                 }
                 break;
               case 'new':
-                if (!this._isRecvSocket(socket)) {
-                  // Destroy this malicious socket.
-                  socket.destroy();
-                  return;
-                }
-
                 this._itemName = recvHeader.name;
                 if (recvHeader.type === 'directory') {
                   try {
@@ -235,6 +246,7 @@ class Receiver {
                       this._state = STATE.ERR_FS;
                     }
                     haveParsedHeader = false;
+                    this._itemSize = 0;
                     return;
                   }
                   haveParsedHeader = false;
@@ -257,28 +269,20 @@ class Receiver {
                     return;
                   }
                   haveParsedHeader = false;
+                  this._itemWrittenBytes = 0;
+                  this._itemSize = recvHeader.size;
                   recvBuf = Buffer.from([]);
                   // TODO Handle various states(stop, end)
                   socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
                 }
-                else {
-                  // What the hell?
-                  // TODO Reject bad header.
-                }
                 break;
               case 'done':
-                if (!this._isRecvSocket(socket)) {
-                  // Destroy this malicious socket.
-                  socket.destroy();
-                  return;
-                }
-
                 if (this._itemHandle) {
                   // Close previous item handle.
                   await this._itemHandle.close();
                 }
                 socket.end();
-                this._state = STATE.RECV_COMPLETE;
+                this._state = STATE.RECV_DONE;
                 break;
               case 'stop':
                 // TODO Implement
@@ -288,9 +292,9 @@ class Receiver {
                 break;
             }
             break;
-          // TODO Implement
           default:
             // What the hell?
+            // Unhandled Receiver state case.
             socket.end();
             break;
         }
@@ -325,14 +329,17 @@ class Receiver {
   }
   /**
    * Return the # of bytes per second.
+   * If the # of bytes or the interval is 0, return previous measured speed.
    * @returns {number}
    */
   getSpeed() {
     const now = Date.now();
-    const ret = speedBytes / ((now - speedStart) / 1000);
-    speedBytes = 0;
-    speedStart = now;
-    return ret;
+    if (now === this._prevSpeedTime || this._speedBytes === 0)
+      return this._prevSpeed;
+    this._prevSpeed = this._speedBytes / ((now - this._prevSpeedTime) / 1000);
+    this._speedBytes = 0;
+    this._prevSpeedTime = now;
+    return this._prevSpeed;
   }
 
   /**
@@ -341,6 +348,14 @@ class Receiver {
   getState() {
     return this._state;
   }
+  /**
+   * Return the current item progress out of 100.
+   * @returns {number}
+   */
+  getItemProgress() {
+    return (this._itemSize === 0 ? 100 : Math.floor(this._itemWrittenBytes / this._itemSize * 100));
+  }
+
   /**
    * Set the current state to IDLE.
    * This is needed to reinitialize the state so after an error or complete,
@@ -360,6 +375,7 @@ class Receiver {
     }
     this._state = STATE.RECV;
     this._downloadPath = downloadPath;
+    this._speedBytes = 0;
     const header = { class: 'ok' };
     this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteRecvError);
     return true;
