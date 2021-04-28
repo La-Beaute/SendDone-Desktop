@@ -47,7 +47,7 @@ const acceptReceiving = (done) => {
 };
 
 async function resetReceiver(orig, dest, done) {
-  if (receiver.getState() === network.STATE.RECV_COMPLETE) {
+  if (receiver.getState() === network.STATE.RECV_DONE) {
     receiver.setStateIdle();
     done();
   }
