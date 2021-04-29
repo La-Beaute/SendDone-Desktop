@@ -24,6 +24,10 @@ class Sender {
      */
     this._message = '';
     /**
+     * @type {boolean} 
+     */
+    this._stopFlag = false;
+    /**
      * @type {net.Socket}
      */
     this._socket = null;
@@ -231,7 +235,7 @@ class Sender {
    */
   stop() {
     if (this._state === STATE.SEND) {
-      this._state = STATE.SENDER_STOP;
+      this._stopFlag = true;
       return true;
     }
     return false;
@@ -256,7 +260,7 @@ class Sender {
     if (this._itemHandle) {
       await this._itemHandle.close();
     }
-    this._state = STATE.SENDER_END;
+    this._stopFlag = true;
     let header = { class: 'end' };
     this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', (err) => {
       if (err) {
@@ -305,9 +309,16 @@ class Sender {
 
   async _send() {
     let header = null;
-    if (this._state === STATE.SENDER_STOP) {
+    if (this._stopFlag) {
+      this._stopFlag = false;
+      this._state = STATE.SENDER_STOP;
       header = { class: 'stop' };
       this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteError);
+      return;
+    }
+    if (this._state === STATE.SENDER_STOP) {
+      // What the hell?
+      // Do not do anything.
       return;
     }
     if (this._index >= this._itemArray.length) {

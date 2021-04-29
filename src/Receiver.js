@@ -38,6 +38,10 @@ class Receiver {
      */
     this._itemFlag = '';
     /**
+     * @type {boolean}
+     */
+    this._stopFlag = false;
+    /**
      * File handle for receiving.
      * @type {fs.FileHandle}
      */
@@ -214,6 +218,8 @@ class Receiver {
             }
             switch (recvHeader.class) {
               case 'ok':
+                if (this._state === STATE.SENDER_STOP)
+                  this._state = STATE.RECV;
                 if (recvBuf.length === recvHeader.size) {
                   // One whole chunk received.
                   // Write chunk on disk.
@@ -244,6 +250,8 @@ class Receiver {
                 }
                 break;
               case 'new':
+                if (this._state === STATE.SENDER_STOP)
+                  this._state = STATE.RECV;
                 this._itemName = recvHeader.name;
                 if (recvHeader.type === 'directory') {
                   try {
@@ -302,6 +310,7 @@ class Receiver {
                 this._state = STATE.RECV_DONE;
                 break;
               case 'stop':
+                haveParsedHeader = false;
                 this._state = STATE.SENDER_STOP;
                 break;
               case 'end':
@@ -404,7 +413,7 @@ class Receiver {
    */
   stop() {
     if (this._state === STATE.RECV) {
-      this._state = STATE.RECEIVER_STOP;
+      this._stopFlag = true;
       return true;
     }
     return false;
@@ -480,13 +489,16 @@ class Receiver {
    */
   _writeOnRecvSocket() {
     let header = null;
+    if (this._stopFlag) {
+      this._stopFlag = false;
+      this._state = STATE.RECEIVER_STOP;
+      header = { class: 'stop' };
+      this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteRecvError);
+      return;
+    }
     switch (this._state) {
       case STATE.RECV:
         header = { class: this._itemFlag };
-        this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteRecvError);
-        break;
-      case STATE.RECEIVER_STOP:
-        header = { class: 'stop' };
         this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteRecvError);
         break;
       case STATE.RECEIVER_END:
