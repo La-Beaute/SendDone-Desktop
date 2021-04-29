@@ -34,6 +34,10 @@ class Receiver {
      */
     this._recvHeader = false;
     /**
+     * @type {'ok'|'next'}
+     */
+    this._itemFlag = '';
+    /**
      * File handle for receiving.
      * @type {fs.FileHandle}
      */
@@ -202,6 +206,7 @@ class Receiver {
                 return;
             }
           case STATE.RECV:
+          case STATE.SENDER_STOP:
             if (!this._isRecvSocket(socket)) {
               // Destroy this malicious socket.
               socket.destroy();
@@ -225,14 +230,17 @@ class Receiver {
                       await fs.rm(path.join(this._downloadPath, this._itemName), { force: true });
                     } finally {
                       this._itemHandle = null;
+                      this._itemFlag = 'next';
+                      this._writeOnRecvSocket();
+                      return;
                     }
                   }
                   haveParsedHeader = false;
                   this._speedBytes += recvBuf.length;
                   this._itemWrittenBytes += recvBuf.length;
                   recvBuf = Buffer.from([]);
-                  // TODO Handle various states(stop, end)
-                  socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
+                  this._itemFlag = 'ok';
+                  this._writeOnRecvSocket();
                 }
                 break;
               case 'new':
@@ -242,13 +250,14 @@ class Receiver {
                     await fs.mkdir(path.join(this._downloadPath, recvHeader.name));
                   } catch (err) {
                     if (err.code === 'EEXIST') {
-                      socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
+                      this._itemFlag = 'ok';
+                      this._writeOnRecvSocket();
                     }
                     else {
                       // Making directory failed.
                       // Even making directory failed means there are serious issues.
-                      this._recvSocket.destroy();
                       this._state = STATE.ERR_FS;
+                      this._recvSocket.destroy();
                     }
                     haveParsedHeader = false;
                     this._itemSize = 0;
@@ -256,8 +265,8 @@ class Receiver {
                     return;
                   }
                   haveParsedHeader = false;
-                  // TODO Handle various states(stop, end)
-                  socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
+                  this._itemFlag = 'ok';
+                  this._writeOnRecvSocket();
                 }
                 else if (recvHeader.type === 'file') {
                   try {
@@ -272,15 +281,16 @@ class Receiver {
                     // TODO Implement.
                     this._itemHandle = null;
                     haveParsedHeader = false;
-                    socket.write(JSON.stringify({ class: 'next' }) + HEADER_END, this._onWriteRecvError);
+                    this._itemFlag = 'next';
+                    this._writeOnRecvSocket();
                     return;
                   }
                   haveParsedHeader = false;
                   this._itemWrittenBytes = 0;
                   this._itemSize = recvHeader.size;
                   recvBuf = Buffer.from([]);
-                  // TODO Handle various states(stop, end)
-                  socket.write(JSON.stringify({ class: 'ok' }) + HEADER_END, 'utf-8', this._onWriteRecvError);
+                  this._itemFlag = 'ok';
+                  this._writeOnRecvSocket();
                 }
                 break;
               case 'done':
@@ -292,11 +302,19 @@ class Receiver {
                 this._state = STATE.RECV_DONE;
                 break;
               case 'stop':
-                // TODO Implement
+                this._state = STATE.SENDER_STOP;
                 break;
               case 'end':
-                // TODO Implement
+                this._state = STATE.SENDER_END;
                 break;
+            }
+            break;
+          case STATE.RECEIVER_STOP:
+            switch (recvHeader.class) {
+              case 'end':
+                this._state = STATE.SENDER_END;
+                break;
+              // Ignore any other classes.
             }
             break;
           default:
@@ -306,7 +324,9 @@ class Receiver {
             break;
         }
       });
-      socket.on('close', () => { socket.end(); });
+      socket.on('close', () => {
+        socket.end();
+      });
     });
 
     this._serverSocket.listen(PORT, ip);
@@ -369,7 +389,6 @@ class Receiver {
     return this._state;
   }
 
-
   /**
    * Set the current state to IDLE.
    * This is needed to reinitialize the state so after an error or complete,
@@ -378,6 +397,51 @@ class Receiver {
   setStateIdle() {
     this._state = STATE.IDLE;
   }
+
+  /**
+   * Stop receiving for a moment.
+   * @returns {boolean}
+   */
+  stop() {
+    if (this._state === STATE.RECV) {
+      this._state = STATE.RECEIVER_STOP;
+      return true;
+    }
+    return false;
+  }
+  /**
+   * Retume from stop.
+   * @returns {boolean}
+   */
+  resume() {
+    if (this._state === STATE.RECEIVER_STOP) {
+      this._state = STATE.RECV;
+      let header = { class: this._itemFlag };
+      this._recvSocket.write(JSON.stringify(header) + HEADER_END, this._onWriteRecvError);
+      return true;
+    }
+    return false;
+  }
+  /**
+   * End receiving.
+   * @returns {boolean}
+   */
+  async end() {
+    if (this._itemHandle) {
+      await this._itemHandle.close();
+    }
+    this._state = STATE.RECEIVER_END;
+    let header = { class: 'end' };
+    this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', (err) => {
+      if (err) {
+        this._onWriteRecvError(err);
+      }
+      else {
+        this._socket.end();
+      }
+    });
+  }
+
   /**
    * This shall be called when the user clicks receive accept button.
    * The module is going to change current state and be ready to receive.
@@ -391,7 +455,8 @@ class Receiver {
     this._downloadPath = downloadPath;
     this._numRecvItem = 0;
     this._speedBytes = 0;
-    const header = { class: 'ok' };
+    this._itemFlag = 'ok';
+    const header = { class: this._itemFlag };
     this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteRecvError);
     return true;
   }
@@ -409,6 +474,28 @@ class Receiver {
     this._recvSocket = null;
     return true;
   }
+
+  /**
+   * Special method for writing to recvSocket while receiving.
+   */
+  _writeOnRecvSocket() {
+    let header = null;
+    switch (this._state) {
+      case STATE.RECV:
+        header = { class: this._itemFlag };
+        this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteRecvError);
+        break;
+      case STATE.RECEIVER_STOP:
+        header = { class: 'stop' };
+        this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteRecvError);
+        break;
+      case STATE.RECEIVER_END:
+        header = { class: 'end' };
+        this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteRecvError);
+        break;
+    }
+  }
+
   /**
    * Validate header what sender sent and return false if invalid, or return true.
    * @param {{app:String, version: String, class: String, array: Array.<{}>}} header 

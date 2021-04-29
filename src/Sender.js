@@ -163,10 +163,11 @@ class Sender {
               this._send();
               break;
             case 'stop':
-              // TODO Implement
+              this._state = STATE.RECEIVER_STOP;
               break
             case 'end':
-              // TODO Implement
+              this._state = STATE.RECEIVER_END;
+              this._socket.end();
               break
             case 'next':
               if (this._itemHandle) {
@@ -181,6 +182,28 @@ class Sender {
               // What the hell?
               console.error('header class value error: Unexpected value ' + recvHeader.class);
               return;
+          }
+          break;
+        case STATE.RECEIVER_STOP:
+          switch (recvHeader.class) {
+            case 'ok':
+              // Receiver wants to resume from stop.
+              this._state = STATE.SEND;
+              this._send();
+              break;
+            case 'end':
+              this._state = STATE.RECEIVER_END;
+            default:
+              // What the hell?
+              break;
+          }
+          break;
+        case STATE.SENDER_STOP:
+          switch (recvHeader.class) {
+            case 'end':
+              this._state = STATE.RECEIVER_END;
+              break;
+            // Ignore any other classes.
           }
           break;
         default:
@@ -200,6 +223,49 @@ class Sender {
       }
       this._state = STATE.ERR_NET;
     })
+  }
+
+  /**
+   * Stop sending for a moment.
+   * @returns {boolean}
+   */
+  stop() {
+    if (this._state === STATE.SEND) {
+      this._state = STATE.SENDER_STOP;
+      return true;
+    }
+    return false;
+  }
+  /**
+   * Resume from stop.
+   * @returns {boolean}
+   */
+  resume() {
+    if (this._state === STATE.SENDER_STOP) {
+      this._state = STATE.SEND;
+      this._send();
+      return true;
+    }
+    return false;
+  }
+  /**
+   * End sending.
+   * @returns {boolean}
+   */
+  async end() {
+    if (this._itemHandle) {
+      await this._itemHandle.close();
+    }
+    this._state = STATE.SENDER_END;
+    let header = { class: 'end' };
+    this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', (err) => {
+      if (err) {
+        this._onWriteError(err);
+      }
+      else {
+        this._socket.end();
+      }
+    });
   }
 
   /**
@@ -239,14 +305,17 @@ class Sender {
 
   async _send() {
     let header = null;
+    if (this._state === STATE.SENDER_STOP) {
+      header = { class: 'stop' };
+      this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteError);
+      return;
+    }
     if (this._index >= this._itemArray.length) {
       // End of send.
       console.log('Sender: Send complete');
       this._state = STATE.SEND_DONE;
       header = { class: 'done' };
-      this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', () => {
-        this._socket.end();
-      });
+      this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteError);
       return;
     }
     if (!this._itemHandle) {
