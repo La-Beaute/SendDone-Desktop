@@ -6,9 +6,8 @@
 .pnp.js
 
 # testing
-# /src/test_receive.js
-# /src/test_send.js
 file
+src/tmp*
 
 # production
 /build

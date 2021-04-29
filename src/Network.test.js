@@ -107,11 +107,11 @@ async function resetReceiverStop(done) {
 async function diffFiles(orig, dest, expectedLen) {
   const origBuf = await fs.readFile(orig);
   const destBuf = await fs.readFile(dest);
-  if (destBuf.length === expectedLen && origBuf.equals(destBuf))
+  if ((expectedLen === undefined || destBuf.length === expectedLen) && origBuf.equals(destBuf))
     return true;
-  throw new Error('Items differ');
+  throw new Error('Items differ ' + orig + ' ' + dest);
 }
-/* 
+
 describe('Send one file', () => {
   before(async () => {
     await delTmpDir();
@@ -252,7 +252,7 @@ describe('Send directories', () => {
     await fs.access(dest);
     await fs.rmdir(dest1);
   });
-}) */
+})
 
 describe('Test stop while sending', () => {
   before(async () => {
@@ -286,4 +286,42 @@ describe('Test stop while sending', () => {
     return await diffFiles(orig, dest, len);
   }).timeout(10000);
 
+  var len = 3000;
+  let arr = Array(len);
+  it('Stop while sending 3000 files and folder', (done) => {
+    async function tmp() {
+      for (let i = 0; i < len; ++i) {
+        let dirFlag = (crypto.randomInt(0, 2) === 1 ? true : false);
+        if (dirFlag) {
+          arr[i] = { name: 'dir' + i };
+          arr[i].path = path.join(tmp1, arr[i].name);
+          await fs.mkdir(arr[i].path);
+        }
+        else {
+          const fileLen = crypto.randomInt(0, 1000000);
+          const buf = crypto.randomBytes(fileLen);
+          arr[i] = { name: 'file' + i };
+          arr[i].path = path.join(tmp1, arr[i].name);
+          await fs.writeFile(arr[i].path, buf);
+        }
+      }
+      return;
+    }
+    tmp().then(() => {
+      console.log('Creating done');
+      sender.send(arr, receiverIp);
+      acceptReceivingStop(done);
+    })
+  }).timeout(30000);
+
+  it('Check 3000 files and folder', async () => {
+    for (let i = 0; i < len; ++i) {
+      if (arr[i].name.includes('dir')) {
+        await fs.access(path.join(tmp2, arr[i].name));
+      }
+      else {
+        await diffFiles(arr[i].path, path.join(tmp2, arr[i].name));
+      }
+    }
+  }).timeout(10000);
 })
