@@ -10,11 +10,11 @@ class Receiver {
    * @param {string} myId 
    */
   constructor(ip, myId) {
+    this._state = STATE.IDLE;
     if (!myId) {
       this._state = STATE.ERR_FS;
       return;
     }
-    this._state = STATE.IDLE;
     /**
      * @type {String} my id.
      */

@@ -69,7 +69,7 @@ const acceptReceivingStop = (done) => {
     receiver.acceptRecv(tmp2);
     setTimeout(() => {
       console.log('receiver stop:', receiver.stop());
-    }, 1000);
+    }, 100);
     setTimeout(() => {
       console.log('receiver resume:', receiver.resume());
     }, 2000);
@@ -79,6 +79,18 @@ const acceptReceivingStop = (done) => {
     setTimeout(() => {
       console.log('sender resume:', sender.resume());
     }, 4000);
+    setTimeout(() => {
+      console.log('sender stop:', sender.stop());
+    }, 5000);
+    setTimeout(() => {
+      console.log('sender resume:', sender.resume());
+    }, 6000);
+    setTimeout(() => {
+      console.log('receiver stop:', receiver.stop());
+    }, 7000);
+    setTimeout(() => {
+      console.log('receiver resume:', receiver.resume());
+    }, 8000);
     resetReceiverStop(done);
   }
   else if (state === network.STATE.IDLE) {
@@ -290,7 +302,7 @@ describe('Test stop while sending', () => {
 
   var len = 3000;
   let arr = Array(len);
-  it('Stop while sending 3000 files and folder', (done) => {
+  it('Stop while sending 3000 files and directories', (done) => {
     async function tmp() {
       for (let i = 0; i < len; ++i) {
         let dirFlag = (crypto.randomInt(0, 2) === 1 ? true : false);
@@ -316,7 +328,7 @@ describe('Test stop while sending', () => {
     })
   }).timeout(30000);
 
-  it('Check 3000 files and folder', async () => {
+  it('Check 3000 files and directories', async () => {
     for (let i = 0; i < len; ++i) {
       if (arr[i].name.includes('dir')) {
         await fs.access(path.join(tmp2, arr[i].name));

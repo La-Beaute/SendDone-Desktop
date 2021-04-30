@@ -9,6 +9,7 @@ class Sender {
    * @param {String} myId 
    */
   constructor(myId) {
+    this._state = STATE.IDLE;
     if (!myId) {
       this._state = STATE.ERR_FS;
       return;
@@ -17,7 +18,6 @@ class Sender {
      * @type {String} my id.
      */
     this._myId = myId;
-    this._state = STATE.IDLE;
     /**
      * Message describing the most recent activity or errors.
      */
