@@ -1,7 +1,7 @@
 const fs = require('fs').promises;
 const net = require('net');
 const path = require('path');
-const { PORT, STATE, VERSION, HEADER_END, CHUNKSIZE, OS, _splitHeader, } = require('./Network');
+const { PORT, STATE, VERSION, HEADER_END, OS, _splitHeader, } = require('./Network');
 
 class Receiver {
   /**
@@ -42,9 +42,13 @@ class Receiver {
      */
     this._stopFlag = false;
     /**
-     * File handle for receiving.
-     * @type {fs.FileHandle}
+     * @type {boolean}
      */
+    this._endFlag = false;
+    /**
+    * File handle for receiving.
+    * @type {fs.FileHandle}
+    */
     this._itemHandle = null;
     /**
      * Array of items. Each item is composed of name, type, and size.
@@ -194,6 +198,16 @@ class Receiver {
                 this._itemArray = recvHeader.itemArray;
                 this._state = STATE.RECV_WAIT;
                 this._recvSocket = socket;
+                // Add receive socket specific event handlers.
+                socket.on('close', () => {
+                  if (!(this._state === STATE.RECV_DONE || this._state === STATE.RECEIVER_END || this._state === STATE.SENDER_END))
+                    // Unexpected close event.
+                    this._state = STATE.ERR_NET;
+                  socket.end();
+                });
+                socket.on('error', (err) => {
+                  this._state = STATE.ERR_NET;
+                });
                 haveParsedHeader = false;
                 break;
               default:
@@ -306,15 +320,17 @@ class Receiver {
                   // Close previous item handle.
                   await this._itemHandle.close();
                 }
-                socket.end();
                 this._state = STATE.RECV_DONE;
+                this._recvSocket = null;
+                socket.end();
                 break;
               case 'stop':
-                haveParsedHeader = false;
                 this._state = STATE.SENDER_STOP;
+                haveParsedHeader = false;
                 break;
               case 'end':
                 this._state = STATE.SENDER_END;
+                this._recvSocket = null;
                 break;
             }
             break;
@@ -322,6 +338,7 @@ class Receiver {
             switch (recvHeader.class) {
               case 'end':
                 this._state = STATE.SENDER_END;
+                this._recvSocket = null;
                 break;
               // Ignore any other classes.
             }
@@ -332,9 +349,6 @@ class Receiver {
             socket.end();
             break;
         }
-      });
-      socket.on('close', () => {
-        socket.end();
       });
     });
 
@@ -412,10 +426,8 @@ class Receiver {
    * @returns {boolean}
    */
   stop() {
-    if (this._state === STATE.RECV) {
-      this._stopFlag = true;
-      return true;
-    }
+    if (this._state === STATE.RECV)
+      return (this._stopFlag = true);
     return false;
   }
   /**
@@ -436,19 +448,20 @@ class Receiver {
    * @returns {boolean}
    */
   async end() {
-    if (this._itemHandle) {
-      await this._itemHandle.close();
+    if (this._state === STATE.RECV || this._state === STATE.SENDER_STOP || this._state === STATE.RECEIVER_STOP) {
+      if (this._itemHandle) {
+        // Delete currently receiving file.
+        await this._itemHandle.close();
+        await fs.rm(path.join(this._downloadPath, this._itemName), { force: true });
+      }
+      this._endFlag = true;
+      if (this._state === STATE.SENDER_STOP || this._state === STATE.RECEIVER_STOP) {
+        // Send end header immediately while stop.
+        this._writeOnRecvSocket();
+      }
+      return true;
     }
-    this._state = STATE.RECEIVER_END;
-    let header = { class: 'end' };
-    this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', (err) => {
-      if (err) {
-        this._onWriteRecvError(err);
-      }
-      else {
-        this._socket.end();
-      }
-    });
+    return false;
   }
 
   /**
@@ -489,6 +502,13 @@ class Receiver {
    */
   _writeOnRecvSocket() {
     let header = null;
+    if (this._endFlag) {
+      this._endFlag = false;
+      this._state = STATE.RECEIVER_END;
+      header = { class: 'end' };
+      this._recvSocket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteRecvError);
+      return;
+    }
     if (this._stopFlag) {
       this._stopFlag = false;
       this._state = STATE.RECEIVER_STOP;

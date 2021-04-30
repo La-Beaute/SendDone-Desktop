@@ -34,29 +34,31 @@ async function mkTmpDir() {
 }
 
 const acceptReceiving = (done) => {
-  if (receiver.getState() === network.STATE.RECV_WAIT) {
+  let state = receiver.getState();
+  if (state === network.STATE.RECV_WAIT) {
     console.log('Accepting receiving.');
     receiver.acceptRecv(tmp2);
     resetReceiver(done);
   }
-  else if (receiver.getState() === network.STATE.IDLE) {
+  else if (state === network.STATE.IDLE) {
     setTimeout(() => { acceptReceiving(done) }, 10);
   }
   else {
-    done(new Error('receiver state is not valid:', receiver.getState()));
+    done(new Error('receiver state is not valid:', state));
   }
 };
 
 async function resetReceiver(done) {
-  if (receiver.getState() === network.STATE.RECV_DONE) {
+  let state = receiver.getState();
+  if (state === network.STATE.RECV_DONE) {
     receiver.setStateIdle();
     done();
   }
-  else if (receiver.getState() === network.STATE.RECV) {
+  else if (state === network.STATE.RECV) {
     setTimeout(() => { resetReceiver(done) }, 10);
   }
   else {
-    done(new Error('receiver state is not valid:', receiver.getState()));
+    done(new Error('receiver state is not valid:', state));
   }
 }
 

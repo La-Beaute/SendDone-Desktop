@@ -1,7 +1,6 @@
 const net = require('net');
 const fs = require('fs').promises;
-const { Stat } = require('fs');
-const path = require('path');
+const { Stats } = require('fs');
 const { PORT, STATE, HEADER_END, VERSION, CHUNKSIZE, _splitHeader } = require('./Network');
 
 class Sender {
@@ -27,6 +26,10 @@ class Sender {
      * @type {boolean} 
      */
     this._stopFlag = false;
+    /**
+     * @type {boolean}
+     */
+    this._endFlag = false;
     /**
      * @type {net.Socket}
      */
@@ -218,6 +221,9 @@ class Sender {
     });
 
     this._socket.on('close', () => {
+      if (!(this._state === STATE.SEND_DONE || this._state === STATE.RECEIVER_END || this._state === STATE.SENDER_END))
+        // Unexpected close event.
+        this._state = STATE.ERR_NET;
       this._socket.end();
     });
 
@@ -234,10 +240,8 @@ class Sender {
    * @returns {boolean}
    */
   stop() {
-    if (this._state === STATE.SEND) {
-      this._stopFlag = true;
-      return true;
-    }
+    if (this._state === STATE.SEND)
+      return (this._stopFlag = true);
     return false;
   }
   /**
@@ -257,19 +261,19 @@ class Sender {
    * @returns {boolean}
    */
   async end() {
-    if (this._itemHandle) {
-      await this._itemHandle.close();
+    if (this._state === STATE.SEND || this._state === STATE.SENDER_STOP || this._state === STATE.RECEIVER_STOP) {
+      if (this._itemHandle) {
+        await this._itemHandle.close();
+      }
+      this._endFlag = true;
+      if (this._state === STATE.SENDER_STOP || this._state === STATE.RECEIVER_STOP) {
+        // Send end header immediately while stop.
+        let header = { class: 'end' };
+        this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteError);
+      }
+      return true;
     }
-    this._stopFlag = true;
-    let header = { class: 'end' };
-    this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', (err) => {
-      if (err) {
-        this._onWriteError(err);
-      }
-      else {
-        this._socket.end();
-      }
-    });
+    return false;
   }
 
   /**
@@ -309,6 +313,13 @@ class Sender {
 
   async _send() {
     let header = null;
+    if (this._endFlag) {
+      this._endFlag = false;
+      this._state = STATE.RECEIVER_END;
+      header = { class: 'end' };
+      this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteError);
+      return;
+    }
     if (this._stopFlag) {
       this._stopFlag = false;
       this._state = STATE.SENDER_STOP;
@@ -400,6 +411,9 @@ class Sender {
    */
   async _createSendRequestHeader() {
     let header = { app: 'SendDone', version: VERSION, class: 'send-request', id: this._myId, itemArray: [] };
+    /**
+     * @type {Stats}
+     */
     let itemStat = null;
     for (let item of this._itemArray) {
       try {
