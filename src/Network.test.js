@@ -34,36 +34,84 @@ async function mkTmpDir() {
 }
 
 const acceptReceiving = (done) => {
-  if (receiver.getState() === network.STATE.RECV_WAIT) {
+  let state = receiver.getState();
+  if (state === network.STATE.RECV_WAIT) {
     console.log('Accepting receiving.');
     receiver.acceptRecv(tmp2);
     resetReceiver(done);
   }
-  else if (receiver.getState() === network.STATE.IDLE) {
+  else if (state === network.STATE.IDLE) {
     setTimeout(() => { acceptReceiving(done) }, 10);
   }
   else {
-    done(new Error('receiver state is not valid:', receiver.getState()));
+    done(new Error('receiver state is not valid:', state));
   }
 };
 
 async function resetReceiver(done) {
-  if (receiver.getState() === network.STATE.RECV_DONE) {
+  let state = receiver.getState();
+  if (state === network.STATE.RECV_DONE) {
     receiver.setStateIdle();
     done();
   }
-  else if (receiver.getState() === network.STATE.RECV) {
+  else if (state === network.STATE.RECV) {
     setTimeout(() => { resetReceiver(done) }, 10);
   }
   else {
-    done(new Error('receiver state is not valid:', receiver.getState()));
+    done(new Error('receiver state is not valid:', state));
   }
 }
 
-async function diffFiles(orig, dest) {
+const acceptReceivingStop = (done) => {
+  let state = receiver.getState();
+  if (state === network.STATE.RECV_WAIT) {
+    console.log('Accepting receiving.');
+    receiver.acceptRecv(tmp2);
+    setTimeout(() => {
+      console.log('receiver stop:', receiver.stop());
+    }, 1000);
+    setTimeout(() => {
+      console.log('receiver resume:', receiver.resume());
+    }, 2000);
+    setTimeout(() => {
+      console.log('sender stop:', sender.stop());
+    }, 3000);
+    setTimeout(() => {
+      console.log('sender resume:', sender.resume());
+    }, 4000);
+    resetReceiverStop(done);
+  }
+  else if (state === network.STATE.IDLE) {
+    setTimeout(() => { acceptReceivingStop(done) }, 10);
+  }
+  else {
+    done(new Error('receiver state is not valid:', state));
+  }
+};
+
+async function resetReceiverStop(done) {
+  let state = receiver.getState();
+  if (state === network.STATE.RECV_DONE) {
+    receiver.setStateIdle();
+    done();
+  }
+  else if (state === network.STATE.RECV) {
+    setTimeout(() => { resetReceiverStop(done) }, 10);
+  }
+  else if (state === network.STATE.RECEIVER_STOP || state === network.STATE.SENDER_STOP) {
+    setTimeout(() => { resetReceiverStop(done) }, 10);
+  }
+  else {
+    done(new Error('receiver state is not valid:', state));
+  }
+}
+
+async function diffFiles(orig, dest, expectedLen) {
   const origBuf = await fs.readFile(orig);
   const destBuf = await fs.readFile(dest);
-  return origBuf.equals(destBuf);
+  if ((expectedLen === undefined || destBuf.length === expectedLen) && origBuf.equals(destBuf))
+    return true;
+  throw new Error('Items differ ' + orig + ' ' + dest);
 }
 
 describe('Send one file', () => {
@@ -81,7 +129,8 @@ describe('Send one file', () => {
 
   it('Send 1KB size file', (done) => {
     const orig = path.join(tmp1, '1KB');
-    const buf = crypto.randomBytes(1024);
+    const len = 1024;
+    const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
       sender.send([{ name: '1KB', path: orig }], receiverIp);
@@ -92,13 +141,14 @@ describe('Send one file', () => {
   it('Check 1KB size file', async () => {
     const orig = path.join(tmp1, '1KB');
     const dest = path.join(tmp2, '1KB');
-    return await diffFiles(orig, dest);
+    const len = 1024;
+    return await diffFiles(orig, dest, len);
   }).timeout(1000);
 
   it('Send 513MB size file', (done) => {
     const orig = path.join(tmp1, '513MB');
-    const dest = path.join(tmp2, '513MB');
-    const buf = crypto.randomBytes(513 * 1024 * 1024);
+    const len = 513 * 1024 * 1024;
+    const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
       sender.send([{ name: '513MB', path: orig }], receiverIp);
@@ -109,13 +159,15 @@ describe('Send one file', () => {
   it('Check 513MB size file', async () => {
     const orig = path.join(tmp1, '513MB');
     const dest = path.join(tmp2, '513MB');
-    return await diffFiles(orig, dest);
+    const len = 513 * 1024 * 1024;
+    return await diffFiles(orig, dest, len);
   }).timeout(120000);
 
   it('Send 0B size file', (done) => {
     const orig = path.join(tmp1, '0B');
     const dest = path.join(tmp2, '0B');
-    const buf = crypto.randomBytes(0);
+    const len = 0;
+    const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
       sender.send([{ name: '0B', path: orig }], receiverIp);
@@ -126,7 +178,8 @@ describe('Send one file', () => {
   it('Check 0B size file', async () => {
     const orig = path.join(tmp1, '0B');
     const dest = path.join(tmp2, '0B');
-    return await diffFiles(orig, dest);
+    const len = 0;
+    return await diffFiles(orig, dest, len);
   }).timeout(1000);
 })
 
@@ -141,7 +194,6 @@ describe('Send directories', () => {
 
   after(async () => {
     await delTmpDir();
-    receiver.closeServerSocket();
   });
 
   it('Send one directory', (done) => {
@@ -202,4 +254,76 @@ describe('Send directories', () => {
     await fs.access(dest);
     await fs.rmdir(dest1);
   });
+})
+
+describe('Test stop while sending', () => {
+  before(async () => {
+    await delTmpDir();
+    if (!(await mkTmpDir())) {
+      console.error('Failed Upon Making tmporary directories!');
+      return;
+    }
+  });
+
+  after(async () => {
+    await delTmpDir();
+    receiver.closeServerSocket();
+  });
+
+  it('Stop while sending 513MB size file', (done) => {
+    const orig = path.join(tmp1, '513MB');
+    const len = 513 * 1024 * 1024;
+    const buf = crypto.randomBytes(len);
+
+    fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
+      sender.send([{ name: '513MB', path: orig }], receiverIp);
+      acceptReceivingStop(done);
+    });
+  }).timeout(30000);
+
+  it('Check 513MB size file', async () => {
+    const orig = path.join(tmp1, '513MB');
+    const dest = path.join(tmp2, '513MB');
+    const len = 513 * 1024 * 1024;
+    return await diffFiles(orig, dest, len);
+  }).timeout(10000);
+
+  var len = 3000;
+  let arr = Array(len);
+  it('Stop while sending 3000 files and folder', (done) => {
+    async function tmp() {
+      for (let i = 0; i < len; ++i) {
+        let dirFlag = (crypto.randomInt(0, 2) === 1 ? true : false);
+        if (dirFlag) {
+          arr[i] = { name: 'dir' + i };
+          arr[i].path = path.join(tmp1, arr[i].name);
+          await fs.mkdir(arr[i].path);
+        }
+        else {
+          const fileLen = crypto.randomInt(0, 1000000);
+          const buf = crypto.randomBytes(fileLen);
+          arr[i] = { name: 'file' + i };
+          arr[i].path = path.join(tmp1, arr[i].name);
+          await fs.writeFile(arr[i].path, buf);
+        }
+      }
+      return;
+    }
+    tmp().then(() => {
+      console.log('Creating done');
+      sender.send(arr, receiverIp);
+      acceptReceivingStop(done);
+    })
+  }).timeout(30000);
+
+  it('Check 3000 files and folder', async () => {
+    for (let i = 0; i < len; ++i) {
+      if (arr[i].name.includes('dir')) {
+        await fs.access(path.join(tmp2, arr[i].name));
+      }
+      else {
+        await diffFiles(arr[i].path, path.join(tmp2, arr[i].name));
+      }
+    }
+  }).timeout(10000);
 })

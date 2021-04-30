@@ -1,7 +1,6 @@
 const net = require('net');
 const fs = require('fs').promises;
-const { Stat } = require('fs');
-const path = require('path');
+const { Stats } = require('fs');
 const { PORT, STATE, HEADER_END, VERSION, CHUNKSIZE, _splitHeader } = require('./Network');
 
 class Sender {
@@ -23,6 +22,14 @@ class Sender {
      * Message describing the most recent activity or errors.
      */
     this._message = '';
+    /**
+     * @type {boolean} 
+     */
+    this._stopFlag = false;
+    /**
+     * @type {boolean}
+     */
+    this._endFlag = false;
     /**
      * @type {net.Socket}
      */
@@ -163,10 +170,11 @@ class Sender {
               this._send();
               break;
             case 'stop':
-              // TODO Implement
+              this._state = STATE.RECEIVER_STOP;
               break
             case 'end':
-              // TODO Implement
+              this._state = STATE.RECEIVER_END;
+              this._socket.end();
               break
             case 'next':
               if (this._itemHandle) {
@@ -183,6 +191,28 @@ class Sender {
               return;
           }
           break;
+        case STATE.RECEIVER_STOP:
+          switch (recvHeader.class) {
+            case 'ok':
+              // Receiver wants to resume from stop.
+              this._state = STATE.SEND;
+              this._send();
+              break;
+            case 'end':
+              this._state = STATE.RECEIVER_END;
+            default:
+              // What the hell?
+              break;
+          }
+          break;
+        case STATE.SENDER_STOP:
+          switch (recvHeader.class) {
+            case 'end':
+              this._state = STATE.RECEIVER_END;
+              break;
+            // Ignore any other classes.
+          }
+          break;
         default:
           // What the hell?
           console.error('header class value error: Unexpected value ' + recvHeader.class);
@@ -191,6 +221,9 @@ class Sender {
     });
 
     this._socket.on('close', () => {
+      if (!(this._state === STATE.SEND_DONE || this._state === STATE.RECEIVER_END || this._state === STATE.SENDER_END))
+        // Unexpected close event.
+        this._state = STATE.ERR_NET;
       this._socket.end();
     });
 
@@ -200,6 +233,47 @@ class Sender {
       }
       this._state = STATE.ERR_NET;
     })
+  }
+
+  /**
+   * Stop sending for a moment.
+   * @returns {boolean}
+   */
+  stop() {
+    if (this._state === STATE.SEND)
+      return (this._stopFlag = true);
+    return false;
+  }
+  /**
+   * Resume from stop.
+   * @returns {boolean}
+   */
+  resume() {
+    if (this._state === STATE.SENDER_STOP) {
+      this._state = STATE.SEND;
+      this._send();
+      return true;
+    }
+    return false;
+  }
+  /**
+   * End sending.
+   * @returns {boolean}
+   */
+  async end() {
+    if (this._state === STATE.SEND || this._state === STATE.SENDER_STOP || this._state === STATE.RECEIVER_STOP) {
+      if (this._itemHandle) {
+        await this._itemHandle.close();
+      }
+      this._endFlag = true;
+      if (this._state === STATE.SENDER_STOP || this._state === STATE.RECEIVER_STOP) {
+        // Send end header immediately while stop.
+        let header = { class: 'end' };
+        this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteError);
+      }
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -239,14 +313,31 @@ class Sender {
 
   async _send() {
     let header = null;
+    if (this._endFlag) {
+      this._endFlag = false;
+      this._state = STATE.RECEIVER_END;
+      header = { class: 'end' };
+      this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteError);
+      return;
+    }
+    if (this._stopFlag) {
+      this._stopFlag = false;
+      this._state = STATE.SENDER_STOP;
+      header = { class: 'stop' };
+      this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteError);
+      return;
+    }
+    if (this._state === STATE.SENDER_STOP) {
+      // What the hell?
+      // Do not do anything.
+      return;
+    }
     if (this._index >= this._itemArray.length) {
       // End of send.
       console.log('Sender: Send complete');
       this._state = STATE.SEND_DONE;
       header = { class: 'done' };
-      this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', () => {
-        this._socket.end();
-      });
+      this._socket.write(JSON.stringify(header) + HEADER_END, 'utf-8', this._onWriteError);
       return;
     }
     if (!this._itemHandle) {
@@ -320,6 +411,9 @@ class Sender {
    */
   async _createSendRequestHeader() {
     let header = { app: 'SendDone', version: VERSION, class: 'send-request', id: this._myId, itemArray: [] };
+    /**
+     * @type {Stats}
+     */
     let itemStat = null;
     for (let item of this._itemArray) {
       try {
