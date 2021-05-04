@@ -1,20 +1,24 @@
 import React,{Component} from 'react';
-import View  from './components/View'
+import {
+  BrowserRouter as Router,
+  Route
+} from 'react-router-dom';
+
+import Main from './components/Main'
+import Setting from './components/Setting'
 
 class App extends Component {
-  constructor(props){
-    super(props);
-  }
   render() {
     return(
-      <div className = 'App'>
-        <View {...viewData}></View>
-      </div>
+      <Router>
+        <Route exact path="/" component={() => <Main {...mainData}/>} />
+        <Route path="/setting" component={() => <Setting {...settingData}/>} />
+      </Router>
     );
   }
 }
 
-const viewData = {
+const mainData = {
   backgroundColorGradient: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/background-color-gradient@1x.png",
   android: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/image-35@2x.png",
   image36: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/image-36@2x.png",
@@ -58,6 +62,24 @@ const viewData = {
   place: " SEND",
   file2Props: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-7@2x.png",
   file22Props: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-7@2x.png",
+};
+
+const settingData = {
+  backgroundColorGradient: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/60867cdbdc9db03225b4f026/img/background-color-gradient@1x.png",
+  box3: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/60867cdbdc9db03225b4f026/img/------@1x.png",
+  goBack: "Go Back",
+  id_Text: "asdf",
+  myId: "My ID:",
+  location_Text: "/root/user/Downloads",
+  folder_Icon2: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/60867cdbdc9db03225b4f026/img/vector@2x.png",
+  folder_Icon1: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/60867cdbdc9db03225b4f026/img/vector-1@2x.png",
+  downloadTo: "Download to:",
+  settings: "SETTINGS",
+  expose2: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/60867cdbdc9db03225b4f026/img/vector-2@2x.png",
+  overlapGroup5: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/60867cdbdc9db03225b4f026/img/vector-3@2x.png",
+  expose21: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/60867cdbdc9db03225b4f026/img/vector-4@2x.png",
+  title: "SendDone",
+  change_text: "CHANGE"
 };
 
 export default App;

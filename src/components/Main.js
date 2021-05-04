@@ -1,10 +1,27 @@
-import React,{Component} from 'react';
-import '../style.css';
+import React, { Component } from 'react';
+import ReactDOM from 'react-dom';
+import { Link } from 'react-router-dom';
+import './Main.css';
+import App from '../App';
 
-class View extends Component{
+let isPop = false;
+let title = '';
+let current_file = 'memo0.txt';
+let total = 99;
+let current = 0;
+
+
+class Main extends Component{
     render() {
-        return(
-          <div className="view">
+      return (
+        <div className="view">
+            { isPop &&
+              <Frame6
+                title = {title}
+                file = {current_file}
+                status = {`(${current}/${total})`}>
+              </Frame6>
+            }
             <div className="overlap-group">
               <img className="background-color-gradient" src={this.props.backgroundColorGradient} alt = ""/>
               <div className="scan-box">
@@ -95,20 +112,78 @@ class View extends Component{
                 </div>
                 <div className="expose valign-text-middle">{this.props.expose}</div>
               </div>
-              <div className="setting" style={{ backgroundImage: `url(${this.props.setting})` }}>
-                <img className="vector-9" src={this.props.vector13} alt = ""/>
-              </div>
+              <Link to = "/setting">
+                <div className="setting" style={{ backgroundImage: `url(${this.props.setting})` }}>
+                  <img className="vector-9" src={this.props.vector13} alt = ""/>
+                </div>
+              </Link>
               <div className="info valign-text-middle">{this.props.info}</div>
               <h1 className="title">{this.props.title}</h1>
             </div>
-            <div className="send-button">
+            <Link onClick = {send}>
+              <div className="send-button">
                 <div className="sendbox">
                     <div className="send">{this.props.place}</div>
                 </div>
-            </div>
+              </div>
+            </Link>
           </div>
         );
     }
 }
 
-export default View;
+let interval;
+
+function send() {
+  isPop = !isPop
+  interval = setInterval(() => {
+    title = 'Sending...'
+    current += 1;
+    current_file = 'memo' + current.toString() + '.txt';
+
+    ReactDOM.render(
+      <App/>,
+      document.getElementById('root')
+    );
+
+    if (current === total) {
+      title = 'Complete!'
+      ReactDOM.render(
+        <App/>,
+        document.getElementById('root')
+      );
+      clearInterval(interval);
+    }
+  }, 100);
+}
+
+
+function Frame6(props) {
+  const {title, file, status} = props;
+
+  return (
+        <div className="overlap-group_" >
+          <h1 className="title_">{title}</h1>
+          <div className="memotxt valign-text-middle">{file}</div>
+          <div className="text-111">{status}</div>
+          <div className="group-36">
+            <div className="overlap-group11">
+              <div className="rectangle-351"></div>
+              <div className="rectangle-361" style = {{width : `${699 * current / total}px`}}></div>
+            </div>
+          </div>
+          <Link onClick={function () { isPop = false; current = 0; clearInterval(interval);}}>
+            <div className="group-35">
+              <div className="overlap-group222">
+                <div className="close">Close</div>
+              </div>
+            </div>
+          </Link>
+        </div>
+  );
+}
+
+
+
+
+export default Main;

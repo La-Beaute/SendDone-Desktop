@@ -20,7 +20,7 @@
 }
 .box1 {
   background-color: rgb(250, 250, 250);
-  box-shadow: 0px 4px 4px rgba(11,0,0,0.25);;
+  box-shadow: 0px 4px 4px rgba(11, 0, 0, 0.25);
   height: 503px;
   left: 0px;
   position: absolute;
@@ -29,14 +29,14 @@
 }
 .box2 {
   background-color: rgb(250, 250, 250);
-  box-shadow: 0px 4px 4px rgba(11,0,0,0.25);;
+  box-shadow: 0px 4px 4px rgba(11, 0, 0, 0.25);
   height: 507px;
   position: absolute;
   width: 325px;
 }
 .checkbox1 {
   background-color: var(--white);
-  box-shadow: 0px 4px 4px rgba(0,0,0,0.25);;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   height: 20px;
   left: 758px;
   position: absolute;
@@ -45,7 +45,7 @@
 }
 .checkbox2 {
   background-color: var(--white);
-  box-shadow: 0px 4px 4px rgba(0,0,0,0.25);;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   height: 20px;
   left: 757px;
   position: absolute;
@@ -54,7 +54,7 @@
 }
 .checkbox3 {
   background-color: var(--white);
-  box-shadow: 0px 4px 4px rgba(0,0,0,0.25);;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   height: 20px;
   left: 757px;
   position: absolute;
@@ -63,7 +63,7 @@
 }
 .checkbox4 {
   background-color: var(--white);
-  box-shadow: 0px 4px 4px rgba(0,0,0,0.25);;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   height: 20px;
   left: 757px;
   position: absolute;
@@ -75,7 +75,7 @@
   display: flex;
   height: 24px;
   left: 755px;
-  padding: 2.0px 2.0px;
+  padding: 2px 2px;
   position: absolute;
   top: 27px;
   width: 24px;
@@ -83,7 +83,7 @@
 .delete {
   text-align: center;
   margin: 0 auto;
-  font-family: 'Roboto';
+  font-family: "Roboto";
   font-weight: bold;
   font-size: 20px;
 }
@@ -104,11 +104,11 @@
 }
 .expose {
   color: var(--black);
-  font-family: 'Roboto', Helvetica;
+  font-family: "Roboto", Helvetica;
   font-size: 12px;
   font-weight: 700;
   height: 14px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   margin-right: 1.52px;
   margin-top: 3px;
   min-height: 14px;
@@ -128,7 +128,7 @@
 .file {
   text-align: center;
   margin: 0 auto;
-  font-family: 'Roboto';
+  font-family: "Roboto";
   font-weight: bold;
   font-size: 20px;
 }
@@ -152,7 +152,7 @@
 }
 .file-select-button {
   text-align: center;
-  font-family: 'Roboto';
+  font-family: "Roboto";
   font-weight: bold;
   font-size: 25px;
   display: flex;
@@ -175,7 +175,7 @@
 .folder {
   text-align: center;
   margin: 0 auto;
-  font-family: 'Roboto';
+  font-family: "Roboto";
   font-weight: bold;
   font-size: 20px;
 }
@@ -200,7 +200,7 @@
 .folder1-txt {
   height: 48px;
   left: 100px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   top: 64px;
   width: 347px;
@@ -208,7 +208,7 @@
 .file2-txt {
   height: 48px;
   left: 122px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   top: 115px;
   width: 347px;
@@ -216,7 +216,7 @@
 .file3-txt {
   height: 48px;
   left: 122px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   top: 173px;
   width: 347px;
@@ -224,14 +224,14 @@
 .file1-txt {
   height: 48px;
   left: 100px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   top: 243px;
   width: 347px;
 }
 .id1 {
   left: 86px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   text-align: center;
   top: 35px;
@@ -239,7 +239,7 @@
 }
 .id2 {
   left: 82px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   text-align: center;
   top: 116px;
@@ -247,7 +247,7 @@
 }
 .id3 {
   left: 86px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   text-align: center;
   top: 191px;
@@ -287,25 +287,27 @@
   top: 186px;
 }
 .overlap-group {
+  align-items: center;
   height: 936px;
-  position: relative;
+  position: absolute;
   width: 1452px;
+  z-index: 1;
 }
 .button2 {
   height: 81px;
   width: 207px;
   display: flex;
   align-items: center;
-  background-color: #F9AC19;
+  background-color: #f9ac19;
   border-radius: 24px;
-  box-shadow: 0px 4px 4px rgba(0,0,0,0.25);
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
 }
 
 .button1 {
   align-items: center;
-  background-color:#F9AC19;
+  background-color: #f9ac19;
   border-radius: 24px;
-  box-shadow: 0px 4px 4px rgba(0,0,0,0.25);
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   display: flex;
   height: 81px;
   width: 297px;
@@ -320,7 +322,7 @@
 }
 .id3-ip {
   left: 90px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   text-align: center;
   top: 227px;
@@ -328,7 +330,7 @@
 }
 .id2-ip {
   left: 86px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   text-align: center;
   top: 152px;
@@ -336,7 +338,7 @@
 }
 .id1-ip {
   left: 90px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   text-align: center;
   top: 71px;
@@ -345,27 +347,27 @@
 .send {
   text-align: center;
   margin: 0 auto;
-  font-family: 'Roboto';
+  font-family: "Roboto";
   font-weight: bold;
   font-size: 23px;
 }
-.button3{
+.button3 {
   display: flex;
   align-items: center;
-  background-color: #F9AC19;
+  background-color: #f9ac19;
   border-radius: 24px;
-  box-shadow: 0px 4px 4px rgba(0,0,0,0.25);;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   height: 53px;
   width: 175px;
 }
 .scroll-bar1-inside {
-  background-color: #F9AC19;
+  background-color: #f9ac19;
   border-radius: 10.5px;
   height: 75px;
   width: 20px;
 }
 .scroll-bar2-inside {
-  background-color: #F9AC19;
+  background-color: #f9ac19;
   border-radius: 10.5px;
   height: 75px;
   width: 20px;
@@ -373,7 +375,7 @@
 .scan {
   text-align: center;
   margin: 0 auto;
-  font-family: 'Roboto';
+  font-family: "Roboto";
   font-weight: bold;
   font-size: 25px;
 }
@@ -416,7 +418,7 @@
   top: 30px;
 }
 .selectbox {
-  background-color: rgba(249,172,24,0.41);
+  background-color: rgba(249, 172, 24, 0.41);
   height: 80px;
   left: 0px;
   position: absolute;
@@ -424,15 +426,17 @@
   width: 325px;
 }
 .send-button {
-  margin-right: 104px;
-  margin-top: 24px;
+  align-items: flex-start;
+  display: flex;
+  margin-right: 94px;
+  margin-top: 129px;
 }
 .sendbox {
   display: flex;
   align-items: center;
-  background-color: #F9AC19;
+  background-color: #f9ac19;
   border-radius: 24px;
-  box-shadow: 0px 4px 4px rgba(0,0,0,0.25);;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   height: 52px;
   width: 207px;
 }
@@ -449,12 +453,12 @@
 }
 .info {
   color: white;
-  font-family: 'Roboto', Helvetica;
+  font-family: "Roboto", Helvetica;
   font-size: 49px;
   font-weight: 700;
   height: 114px;
-  left: 598px;
-  position: absolute;
+  margin: 0 auto;
+  position: relative;
   text-align: center;
   top: 188px;
 }
@@ -463,12 +467,12 @@
   margin: 0 auto;
 }
 .title {
-  color: rgba(0,0,0,0.79);
-  font-family: 'Roboto', Helvetica;
+  color: rgba(0, 0, 0, 0.79);
+  font-family: "Roboto", Helvetica;
   font-size: 64px;
   font-weight: 700;
   left: 584px;
-  letter-spacing: 0.00px;
+  letter-spacing: 0px;
   position: absolute;
   text-align: center;
   top: 85px;
@@ -545,10 +549,11 @@
 }
 .view {
   align-items: flex-end;
-  display: flex;
-  flex-direction: column;
   height: 1024px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
   width: 1440px;
   border: 0.1px solid;
 }
@@ -581,6 +586,130 @@
 @import url("https://fonts.googleapis.com/css?family=Roboto:700,100");
 * {
   box-sizing: border-box;
+}
+.valign-text-middle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.close {
+  font-family: "Roboto";
+  font-weight: bold;
+  font-size: 24px;
+  text-align: center;
+  width: 168px;
+}
+.frame-6 {
+  align-items: flex-start;
+  display: flex;
+  height: 503px;
+  justify-content: center;
+  mix-blend-mode: normal;
+  overflow: hidden;
+  width: 894px;
+}
+.group-35 {
+  align-self: center;
+  display: flex;
+  margin-left: 1px;
+  margin-top: 75px;
+  min-width: 177px;
+}
+.group-36 {
+  align-items: flex-start;
+  display: flex;
+  margin-top: 40px;
+  min-width: 701px;
+}
+.memotxt {
+  font-family: "Roboto";
+  font-weight: bold;
+  font-size: 30px;
+  margin-top: 36px;
+}
+.overlap-group_ {
+  box-shadow: 0px 4px 4px rgba(11, 0, 0, 0.25);
+  overflow: hidden;
+  position: absolute;
+  align-items: center;
+  background-size: 100% 100%;
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  min-height: 511px;
+  padding: 49px 99px;
+  width: 902px;
+  margin-top: 250px;
+  margin-right: 260px;
+  z-index: 2;
+}
+.overlap-group11 {
+  height: 22px;
+  position: relative;
+  width: 701px;
+}
+.overlap-group222 {
+  align-items: center;
+  background-color: lightgray;
+  display: flex;
+  height: 65px;
+  min-width: 175px;
+}
+.rectangle-351 {
+  background-color: lightgray;
+  border-radius: 15px;
+  height: 22px;
+  left: 0;
+  mix-blend-mode: normal;
+  position: absolute;
+  top: 0;
+  width: 700px;
+}
+.rectangle-361 {
+  background-color: #f9ac19;
+  border-radius: 15px;
+  height: 18px;
+  left: 2px;
+  mix-blend-mode: normal;
+  position: absolute;
+  top: 2px;
+  width: 699px;
+}
+.text-111 {
+  color: #f9ac19;
+  font-family: "Roboto";
+  font-weight: bold;
+  font-size: 24px;
+  margin-top: 2px;
+}
+.title_ {
+  font-family: "Roboto";
+  font-weight: bold;
+  font-size: 40px;
+  margin-top: 42px;
+  text-align: center;
+}
+
+@import url("https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css");
+@import url("https://fonts.googleapis.com/css?family=Roboto:700,500,100");
+* {
+  box-sizing: border-box;
+}
+.container-center-horizontal {
+  pointer-events: none;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  width: 100%;
+}
+.container-center-horizontal > * {
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+.screen a {
+  text-decoration: none;
+  display: contents;
 }
 .valign-text-middle {
   display: flex;
