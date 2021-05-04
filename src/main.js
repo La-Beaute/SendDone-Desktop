@@ -195,3 +195,9 @@ ipcMain.handle('get-recv-state', () => {
   }
   return null;
 })
+
+ipcMain.handle('recv', () => {
+  if (receiver) {
+    receiver.acceptRecv(app.getPath('downloads'));
+  }
+})

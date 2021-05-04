@@ -13,6 +13,7 @@ function App() {
   const [speed, setSpeed] = useState('');
   const [serverSocketOpen, setServerSocketOpen] = useState(false);
   let stateHandler = null;
+  let recvStateHandler = null;
 
   // Select local files.
   const openFile = async () => {
@@ -45,13 +46,31 @@ function App() {
 
   const getSendState = async () => {
     const ret = await ipcRenderer.invoke('get-send-state');
-    if (ret.state === STATE.RECV_WAIT) {
+    if (ret.state === STATE.SEND_WAIT) {
       setSpeed('Waiting...');
     }
     else if (ret.state === STATE.SEND) {
       setSpeed(ret.speed);
     }
     else if (ret.state === STATE.SEND_DONE) {
+      setSpeed('Done!');
+      clearInterval(stateHandler);
+    }
+  }
+
+  const getRecvState = async () => {
+    const ret = await ipcRenderer.invoke('get-recv-state');
+    if (ret.state === STATE.RECV_WAIT) {
+      let input = confirm('Want to receive?');
+      if (input) {
+        ipcRenderer.invoke('recv');
+      }
+      setSpeed('Waiting...');
+    }
+    else if (ret.state === STATE.RECV) {
+      setSpeed(ret.speed);
+    }
+    else if (ret.state === STATE.RECV_DONE) {
       setSpeed('Done!');
       clearInterval(stateHandler);
     }
@@ -77,8 +96,10 @@ function App() {
   // Add something that needs to be called after loading this component such as getting the network list.
   useEffect(() => {
     const intervalFun = async () => {
-      const ret = await ipcRenderer.invoke('is-server-socket-open');
+      let ret = await ipcRenderer.invoke('is-server-socket-open');
       setServerSocketOpen(ret);
+      if (ret)
+        getRecvState();
     }
     getNetworks();
     intervalFun();
