@@ -165,6 +165,7 @@ ipcMain.handle('get-send-state', () => {
     }
     if (state === network.STATE.SEND_DONE) {
       dialog.showMessageBoxSync(mainWindow, { message: 'Send Complete~!' });
+      sender = null;
       return { state: state };
     }
     return { state: state };
@@ -190,6 +191,7 @@ ipcMain.handle('get-recv-state', () => {
     }
     if (state === network.STATE.RECV_DONE) {
       dialog.showMessageBoxSync(mainWindow, { message: 'Receive Complete~!' });
+      receiver.setStateIdle();
       return { state: state };
     }
   }

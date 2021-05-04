@@ -54,14 +54,14 @@ function App() {
     }
     else if (ret.state === STATE.SEND_DONE) {
       setSpeed('Done!');
-      clearInterval(stateHandler);
+      clearInterval();
     }
   }
 
   const getRecvState = async () => {
     const ret = await ipcRenderer.invoke('get-recv-state');
     if (ret.state === STATE.RECV_WAIT) {
-      let input = confirm('Want to receive?');
+      let input = window.confirm('Want to receive?');
       if (input) {
         ipcRenderer.invoke('recv');
       }
@@ -72,7 +72,6 @@ function App() {
     }
     else if (ret.state === STATE.RECV_DONE) {
       setSpeed('Done!');
-      clearInterval(stateHandler);
     }
   }
 
