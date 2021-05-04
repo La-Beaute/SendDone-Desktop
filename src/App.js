@@ -55,7 +55,8 @@ function App() {
       setSpeed(ret.speed);
     }
     else if (ret.state === STATE.SEND_DONE) {
-      setSpeed('Done!');
+      console.log(ret.state);
+      setSpeed((Date.now() - startTime) + 'ms');
       clearInterval(sendStateHandler);
     }
   }
@@ -73,7 +74,7 @@ function App() {
       setSpeed(ret.speed);
     }
     else if (ret.state === STATE.RECV_DONE) {
-      setSpeed(Date.now() - startTime, 'ms');
+      setSpeed('Done!');
     }
   }
 

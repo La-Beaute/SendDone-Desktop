@@ -44,12 +44,7 @@ function createWindow() {
     console.log('Running in development');
     // When in development, run react start first.
     // The main electron window will load the react webpage like below.
-    // mainWindow.loadURL('http://localhost:3000');
-    mainWindow.loadFile(path.join(__dirname, '../build/index.html')).then(() => {
-      console.log('Loaded index.html');
-    }).catch(() => {
-      console.log('Loading index.html failed');
-    });
+    mainWindow.loadURL('http://localhost:3000');
   }
   else {
     console.log('Running in production');
@@ -164,7 +159,7 @@ ipcMain.handle('get-send-state', () => {
       return { state: state, speed: speed };
     }
     if (state === network.STATE.SEND_DONE) {
-      dialog.showMessageBoxSync(mainWindow, { message: 'Send Complete~!' });
+      dialog.showMessageBox(mainWindow, { message: 'Send Complete~!' });
       sender = null;
       return { state: state };
     }
@@ -190,7 +185,7 @@ ipcMain.handle('get-recv-state', () => {
       return { state: state, speed: speed };
     }
     if (state === network.STATE.RECV_DONE) {
-      dialog.showMessageBoxSync(mainWindow, { message: 'Receive Complete~!' });
+      dialog.showMessageBox(mainWindow, { message: 'Receive Complete~!' });
       receiver.setStateIdle();
       return { state: state };
     }
