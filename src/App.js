@@ -5,6 +5,8 @@ import './App.css';
 // const networking = window.networking;
 const ipcRenderer = window.ipcRenderer;
 const STATE = window.STATE;
+let startTime;
+
 function App() {
   const [itemArray, setItemArray] = useState([]);
   const [ip, setIp] = useState(null);
@@ -12,8 +14,7 @@ function App() {
   const [networks, setNetworks] = useState([]);
   const [speed, setSpeed] = useState('');
   const [serverSocketOpen, setServerSocketOpen] = useState(false);
-  let stateHandler = null;
-  let recvStateHandler = null;
+  let sendStateHandler = null;
 
   // Select local files.
   const openFile = async () => {
@@ -40,8 +41,9 @@ function App() {
   }
 
   const send = () => {
-    const ret = ipcRenderer.invoke('send', { ip: sendIp, itemArray: itemArray });
-    stateHandler = setInterval(() => { getSendState() }, 500);
+    ipcRenderer.invoke('send', { ip: sendIp, itemArray: itemArray });
+    startTime = Date.now();
+    sendStateHandler = setInterval(() => { getSendState() }, 500);
   }
 
   const getSendState = async () => {
@@ -54,7 +56,7 @@ function App() {
     }
     else if (ret.state === STATE.SEND_DONE) {
       setSpeed('Done!');
-      clearInterval();
+      clearInterval(sendStateHandler);
     }
   }
 
@@ -71,7 +73,7 @@ function App() {
       setSpeed(ret.speed);
     }
     else if (ret.state === STATE.RECV_DONE) {
-      setSpeed('Done!');
+      setSpeed(Date.now() - startTime, 'ms');
     }
   }
 
