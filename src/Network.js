@@ -102,7 +102,7 @@ function scan(ip, netmask, myId, callback) {
           let recvHeader = JSON.parse(ret.header);
           if (recvHeader && recvHeader.app === 'SendDone' && recvHeader.class === 'ok') {
             if (callback)
-              callback(socket.remoteAddress, recvheader.version, recvHeader.id, recvHeader.os);
+              callback(socket.remoteAddress, recvHeader.version, recvHeader.id, recvHeader.os);
           }
         }
       })

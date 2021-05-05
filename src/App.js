@@ -1,63 +1,138 @@
-import React,{Component} from 'react';
-import View  from './components/View'
+import React, { useState, useEffect } from 'react';
+import './App.css';
+// Below lines are importing modules from window object.
+// Look at 'preload.js' for more understanding.
+// const networking = window.networking;
+const ipcRenderer = window.ipcRenderer;
+const STATE = window.STATE;
+let startTime;
 
-class App extends Component {
-  constructor(props){
-    super(props);
+function App() {
+  const [itemArray, setItemArray] = useState([]);
+  const [ip, setIp] = useState(null);
+  const [sendIp, setSendIp] = useState('');
+  const [networks, setNetworks] = useState([]);
+  const [speed, setSpeed] = useState('');
+  const [serverSocketOpen, setServerSocketOpen] = useState(false);
+  let sendStateHandler = null;
+
+  // Select local files.
+  const openFile = async () => {
+    var ret = await ipcRenderer.invoke('open-file');
+    if (ret)
+      setItemArray([...itemArray, ...ret]);
+  };
+
+  // Select local directories.
+  /*   const openDirectory = async () => {
+      var ret = await ipcRenderer.invoke('open-directory');
+      if (ret)
+        setItemList([...itemList, ...ret]);
+    }; */
+
+  const listItems = itemArray.map((item) => {
+    return <div className="ItemElement" key={item.path}>{item.path + ' | ' + item.name}</div>;
+  });
+
+  const getNetworks = async () => {
+    const ret = await ipcRenderer.invoke('get-networks');
+    if (ret)
+      setNetworks([...ret]);
   }
-  render() {
-    return(
-      <div className = 'App'>
-        <View {...viewData}></View>
+
+  const send = () => {
+    ipcRenderer.invoke('send', { ip: sendIp, itemArray: itemArray });
+    startTime = Date.now();
+    sendStateHandler = setInterval(() => { getSendState() }, 500);
+  }
+
+  const getSendState = async () => {
+    const ret = await ipcRenderer.invoke('get-send-state');
+    if (ret.state === STATE.SEND_WAIT) {
+      setSpeed('Waiting...');
+    }
+    else if (ret.state === STATE.SEND) {
+      setSpeed(ret.speed);
+    }
+    else if (ret.state === STATE.SEND_DONE) {
+      console.log(ret.state);
+      setSpeed((Date.now() - startTime) + 'ms');
+      clearInterval(sendStateHandler);
+    }
+  }
+
+  const getRecvState = async () => {
+    const ret = await ipcRenderer.invoke('get-recv-state');
+    if (ret.state === STATE.RECV_WAIT) {
+      let input = window.confirm('Want to receive?');
+      if (input) {
+        ipcRenderer.invoke('recv');
+      }
+      setSpeed('Waiting...');
+    }
+    else if (ret.state === STATE.RECV) {
+      setSpeed(ret.speed);
+    }
+    else if (ret.state === STATE.RECV_DONE) {
+      setSpeed('Done!');
+    }
+  }
+
+  const listNetworks = networks.map((network) => {
+    return <option value={network.ip} key={network.ip}>{network.name} | {network.ip} | {network.netmask}</option>;
+  });
+
+  const handleNetworkChange = (event) => {
+    setIp(event.target.value);
+  }
+
+  const initServerSocket = async () => {
+    ipcRenderer.invoke('init-server-socket', { ip: ip, itemArray: itemArray });
+  }
+
+  const closeServerSocket = async () => {
+    ipcRenderer.invoke('close-server-socket');
+  }
+
+  // useEffect is something like componentDidMount in React class component.
+  // Add something that needs to be called after loading this component such as getting the network list.
+  useEffect(() => {
+    const intervalFun = async () => {
+      let ret = await ipcRenderer.invoke('is-server-socket-open');
+      setServerSocketOpen(ret);
+      if (ret)
+        getRecvState();
+    }
+    getNetworks();
+    intervalFun();
+    const intervalHandler = setInterval(() => { intervalFun(); }, 1000);
+    return () => clearInterval(intervalHandler);
+  }, []);
+
+  return (
+    <div className="App">
+      <div className="Head">
+        <select onChange={handleNetworkChange}>
+          {listNetworks}
+        </select>
       </div>
-    );
-  }
-}
-
-const viewData = {
-  backgroundColorGradient: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/background-color-gradient@1x.png",
-  android: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/image-35@2x.png",
-  image36: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/image-36@2x.png",
-  iphone: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/image-35@2x.png",
-  image362: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/image-36-1@2x.png",
-  desktop: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/desktop@2x.png",
-  id3_ip: "192.168.0.7",
-  id3: "ID3",
-  id2_ip: "192.168.0.6",
-  id2: "ID2",
-  id1_ip: "192.168.0.5",
-  id1: "ID1",
-  scan: "② SCAN",
-  Folder: "+ FOLDER",
-  File: "+ FILE",
-  xdelete: "Delete",
-  file1_txt: "     /home/th/memo3.txt",
-  file3: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-1@2x.png",
-  overlapGroup5: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-1@2x.png",
-  vector2: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-3@2x.png",
-  vector3: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-4@2x.png",
-  vector4: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-3@2x.png",
-  vector5: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-4@2x.png",
-  file3_txt: "/home/th/memo2.txt",
-  file2_txt: "/home/th/memo1.txt",
-  folder1_txt: "/home/th",
-  vector6: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-9@2x.png",
-  vector7: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-10@2x.png",
-  text1: "① FILE SELECT",
-  vector8: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-11@2x.png",
-  vector9: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-12@2x.png",
-  vector10: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-13@2x.png",
-  overlapGroup9: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-14@2x.png",
-  vector11: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-15@2x.png",
-  vector12: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-16@2x.png",
-  expose: "Expose",
-  setting: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-17@2x.png",
-  vector13: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-18@2x.png",
-  info: <>Hi, asdf<br />192.168.0.2</>,
-  title: "SendDone",
-  place: " SEND",
-  file2Props: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-7@2x.png",
-  file22Props: "https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/vector-7@2x.png",
+      <div className="Box1">
+        <button onClick={openFile}>Open File</button>
+        {/* <button onClick={openDirectory}>Open Directory</button> */}
+        <button onClick={initServerSocket}>Open Server</button>
+        <button onClick={closeServerSocket}>Close Server</button>
+        <div className={serverSocketOpen ? "ServerStatOpen" : "ServerStatClose"} />
+      </div>
+      <div className="Box1">
+        <input type="text" onChange={(event) => { setSendIp(event.target.value) }}></input>
+        <button onClick={send}>Send</button>
+        {speed}
+      </div>
+      <div className="ItemList">
+        {listItems}
+      </div>
+    </div>
+  );
 };
 
 export default App;

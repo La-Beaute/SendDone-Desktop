@@ -69,7 +69,7 @@ const acceptReceivingStop = (done) => {
     receiver.acceptRecv(tmp2);
     setTimeout(() => {
       console.log('receiver stop:', receiver.stop());
-    }, 100);
+    }, 1000);
     setTimeout(() => {
       console.log('receiver resume:', receiver.resume());
     }, 2000);

@@ -18,7 +18,11 @@ var receiver = null;
 /**
  * @type {String}
  */
-var myId = '';
+var myId = 'hello';
+/**
+ * @type {String}
+ */
+var myIp = '';
 
 function createWindow() {
   // Create the browser window.
@@ -45,9 +49,9 @@ function createWindow() {
   else {
     console.log('Running in production');
     // removeMenu will remove debugger menu too. Comment the below line if not wanted.
-    mainWindow.removeMenu();
+    // mainWindow.removeMenu();
     // When in production, run react build first.
-    // The mian electron window will load the react built packs like below.
+    // The main electron window will load the react built packs like below.
     mainWindow.loadFile(path.join(__dirname, '../build/index.html')).then(() => {
       console.log('Loaded index.html');
     }).catch(() => {
@@ -85,36 +89,112 @@ app.on('window-all-closed', function () {
 
 // Handle inter process communications with renderer processes.
 ipcMain.handle('open-file', () => {
-  return dialog.showOpenDialogSync(mainWindow, {
+  let tmp = dialog.showOpenDialogSync(mainWindow, {
     title: "Open File(s)",
     properties: ["openFile", "multiSelections"]
   });
+  let ret = Array();
+  for (item of tmp) {
+    ret.push({ path: item, name: path.basename(item) });
+  }
+  return ret;
 })
 
-ipcMain.handle('open-directory', () => {
+/* ipcMain.handle('open-directory', () => {
   return dialog.showOpenDialogSync(mainWindow, {
     title: "Open Directory(s)",
     properties: ["openDirectory", "multiSelections"]
   });
-})
+}) */
 
 ipcMain.handle('get-networks', () => {
   return network.getMyNetworks();
 })
 
 ipcMain.handle('init-server-socket', (event, arg) => {
-  const ip = arg;
-  receiver = new Receiver(ip, myId);
+  if (receiver) {
+    receiver.closeServerSocket();
+    receiver = null;
+  }
+  myIp = arg;
+  receiver = new Receiver(myIp, myId);
 })
 
 ipcMain.handle('close-server-socket', () => {
-  network.closeServerSocket();
+  if (receiver) {
+    receiver.closeServerSocket();
+    receiver = null;
+  }
 })
 
 ipcMain.handle('is-server-socket-open', () => {
-  return network.isServerSocketListening();
+  return receiver && receiver.isExposed();
 })
 
 ipcMain.handle('set-id', (event, arg) => {
   myId = arg;
+})
+
+ipcMain.handle('send', (event, arg) => {
+  // Close receiver.
+  if (receiver) {
+    receiver.closeServerSocket();
+  }
+  const ip = arg.ip;
+  const itemArray = arg.itemArray;
+  if (!sender) {
+    sender = new Sender('id');
+    sender.send(itemArray, ip);
+  }
+})
+
+ipcMain.handle('get-send-state', () => {
+  if (sender) {
+    const state = sender.getState();
+    if (state === network.STATE.SEND_REQUEST) {
+      return { state: state };
+    }
+    if (state === network.STATE.SEND) {
+      const speed = sender.getSpeed();
+      return { state: state, speed: speed };
+    }
+    if (state === network.STATE.SEND_DONE) {
+      dialog.showMessageBox(mainWindow, { message: 'Send Complete~!' });
+      sender = null;
+      return { state: state };
+    }
+    return { state: state };
+  }
+  return null;
+})
+
+ipcMain.handle('finish-send', () => {
+  if (receiver) {
+    receiver.initServerSocket(myIp);
+  }
+})
+
+ipcMain.handle('get-recv-state', () => {
+  if (receiver) {
+    const state = receiver.getState();
+    if (state === network.STATE.RECV_WAIT) {
+      return { state: state, itemArray: receiver.getitemArray() };
+    }
+    if (state === network.STATE.RECV) {
+      const speed = sender.getSpeed();
+      return { state: state, speed: speed };
+    }
+    if (state === network.STATE.RECV_DONE) {
+      dialog.showMessageBox(mainWindow, { message: 'Receive Complete~!' });
+      receiver.setStateIdle();
+      return { state: state };
+    }
+  }
+  return null;
+})
+
+ipcMain.handle('recv', () => {
+  if (receiver) {
+    receiver.acceptRecv(app.getPath('downloads'));
+  }
 })
