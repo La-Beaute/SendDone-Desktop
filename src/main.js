@@ -104,7 +104,7 @@ ipcMain.handle('openFile', () => {
   if (!tmp)
     return ret;
   for (item of tmp) {
-    ret.push({ path: item, name: path.basename(item), type: 'file' });
+    ret.push({ path: item, dir: '.', name: path.basename(item), type: 'file' });
   }
   return ret;
 })
