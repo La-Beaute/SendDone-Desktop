@@ -1,5 +1,6 @@
 // Modules to control application life and create native browser window
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const fs = require('fs').promises;
 const path = require('path');
 const network = require('./Network');
 const { Sender } = require('./Sender');
@@ -29,9 +30,9 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     title: 'SendDone',
     minWidth: 800,
-    minHeight: 450,
-    width: 900,
-    height: 650,
+    minHeight: 600,
+    width: 800,
+    height: 600,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       enableRemoteModule: false,
@@ -45,11 +46,12 @@ function createWindow() {
     // When in development, run react start first.
     // The main electron window will load the react webpage like below.
     mainWindow.loadURL('http://localhost:3000');
+    mainWindow.maximize();
   }
   else {
     console.log('Running in production');
     // removeMenu will remove debugger menu too. Comment the below line if not wanted.
-    // mainWindow.removeMenu();
+    mainWindow.removeMenu();
     // When in production, run react build first.
     // The main electron window will load the react built packs like below.
     mainWindow.loadFile(path.join(__dirname, '../build/index.html')).then(() => {
@@ -94,40 +96,64 @@ ipcMain.handle('open-file', () => {
     properties: ["openFile", "multiSelections"]
   });
   let ret = Array();
+  if (!tmp)
+    return ret;
   for (item of tmp) {
-    ret.push({ path: item, name: path.basename(item) });
+    ret.push({ path: item, name: path.basename(item), type: 'file' });
   }
   return ret;
 })
 
-/* ipcMain.handle('open-directory', () => {
-  return dialog.showOpenDialogSync(mainWindow, {
+ipcMain.handle('open-directory', async () => {
+  let tmp = dialog.showOpenDialogSync(mainWindow, {
     title: "Open Directory(s)",
     properties: ["openDirectory", "multiSelections"]
   });
-}) */
+  let ret = Array();
+  if (!tmp)
+    return ret;
+  for (item of tmp) {
+    ret.push({ path: item, name: path.basename(item) });
+  }
+  for (let i = 0; i < ret.length; ++i) {
+    let item = ret[i];
+    let itemStat = await fs.stat(item.path);
+    if (itemStat.isDirectory()) {
+      item.type = 'directory';
+      for (let subItem of (await fs.readdir(item.path))) {
+        ret.push({ path: path.join(item.path, subItem), name: path.join(item.name, subItem) });
+      }
+    }
+    else {
+      item.type = 'file';
+    }
+  }
+  return ret;
+})
 
 ipcMain.handle('get-networks', () => {
   return network.getMyNetworks();
 })
 
-ipcMain.handle('init-server-socket', (event, arg) => {
+ipcMain.handle('openServerSocket', (event, arg) => {
   if (receiver) {
     receiver.closeServerSocket();
-    receiver = null;
   }
   myIp = arg;
   receiver = new Receiver(myIp, myId);
+  return true;
 })
 
-ipcMain.handle('close-server-socket', () => {
+ipcMain.handle('closeServerSocket', () => {
   if (receiver) {
     receiver.closeServerSocket();
     receiver = null;
+    return true;
   }
+  return false;
 })
 
-ipcMain.handle('is-server-socket-open', () => {
+ipcMain.handle('isServerSocketOpen', () => {
   return receiver && receiver.isExposed();
 })
 
@@ -138,7 +164,7 @@ ipcMain.handle('set-id', (event, arg) => {
 ipcMain.handle('send', (event, arg) => {
   // Close receiver.
   if (receiver) {
-    receiver.closeServerSocket();
+    receiver.setStateBusy();
   }
   const ip = arg.ip;
   const itemArray = arg.itemArray;
@@ -170,11 +196,11 @@ ipcMain.handle('get-send-state', () => {
 
 ipcMain.handle('finish-send', () => {
   if (receiver) {
-    receiver.expose(myIp);
+    receiver.setStateIdle();
   }
 })
 
-ipcMain.handle('get-recv-state', () => {
+ipcMain.handle('getRecvState', () => {
   if (receiver) {
     const state = receiver.getState();
     if (state === network.STATE.RECV_WAIT) {
@@ -189,11 +215,18 @@ ipcMain.handle('get-recv-state', () => {
       receiver.setStateIdle();
       return { state: state };
     }
+    return { state: state };
   }
   return null;
 })
 
-ipcMain.handle('recv', () => {
+ipcMain.handle('acceptRecv', () => {
+  if (receiver) {
+    receiver.acceptRecv(app.getPath('downloads'));
+  }
+})
+
+ipcMain.handle('rejectRecv', () => {
   if (receiver) {
     receiver.acceptRecv(app.getPath('downloads'));
   }

@@ -8,68 +8,75 @@
   overflow: hidden;
 }
 .Head{
-  width: 100%;
-  max-height: 60px;
+  display: flex;
+  flex-direction: row;
+  position: relative;
+  min-width: 100%;
+  padding: 10px 10px 5% 10px;
+  margin-bottom: 5%;
+  align-items: center;
   border-bottom: 1px solid black;
 }
-
-.Box1{
-  width: 95%;
+.Head-Header{
+  margin: auto;
+  font-size: 3rem;
+  font-weight: bold;
+}
+.Head-Buttons{
+  position: absolute;
+  right: 10px;
+  align-self: flex-end;
   display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+}
+.Head-Row{
+  display: flex;
+  align-items: center;
+}
+.Main{
+  width: 100%;
+  height: auto;
+  display: grid;
+  grid-template-columns: 5fr 2fr;
+  grid-template-rows: 1fr;
   border: 1px solid black;
   align-items: center;
-  margin: 10px auto;
-  padding: 10px;
+  column-gap: 10px;
 }
-
-.ItemList{
-  width: 95%;
-  max-height: 80%;
-  overflow-y: auto;
+.Box{
+  width: 100%;
+  height: auto;
   border: 1px solid black;
-  align-items: center;
-  margin: 10px auto;
-  padding: 10px;
 }
 
-.ItemElement{
-  border-left: 1px solid black;
-  margin: 5px;
-  padding: 5px;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.ServerStatOpen{
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background-color: green;
-}
-.ServerStatClose{
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background-color: red;
-}
-
-button{
-  background-color: #00000000;
-  border: 1px solid gray;
-  color: black;
+.TextButton{
   min-width: fit-content;
-  border-color: gray;
+  background-color: orange;
+  border: 1px solid gray;
+  border-radius: 30px;
+  box-shadow: 2px 2px 2px gray;
+  margin: 5px;
+  color: black;
+  font-size: 1rem;
+  font-weight: bold;
   transition: 0.2s;
   text-align: center;
-  padding: 5px 10px;
+  padding: 10px 10px;
   overflow: hidden;
   white-space: nowrap;
 }
-button:hover{
-  background-color: #33333388;
+.TextButton:hover{
   border-color: purple;
-  color: purple;
+  color: white;
 }
-button:disabled{
+.ServerStatOpen{
+  color: green;
+}
+.ServerStatClose{
+  color: red;
+}
+
+.TextButton:disabled{
   background-color: gray;
 }

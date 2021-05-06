@@ -1,0 +1,17 @@
+.ItemView{
+  width: 95%;
+  height: 50vh;
+  overflow-y: auto;
+  border: 1px solid black;
+  align-items: center;
+  margin: 10px auto;
+  padding: 10px;
+}
+
+.ItemElement{
+  border-left: 1px solid black;
+  margin: 5px;
+  padding: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+}

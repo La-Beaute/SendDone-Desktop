@@ -112,15 +112,15 @@ class Receiver {
       }
     }
 
-    this.expose(ip);
+    this.open(ip);
   }
 
   /**
-   * Initialize the server socket with the ip address.
+   * Open the server socket with the ip address.
    * Note that the port number is fixed thus cannot be changed.
    * @param {String} ip address. 
    */
-  expose(ip) {
+  open(ip) {
     if (!ip) {
       // ip is not set.
       return;
