@@ -10,6 +10,7 @@ let startTime;
 
 function App() {
   const [itemArray, setItemArray] = useState([]);
+  const [itemViewCurDir, setItemViewCurDir] = useState('.');
   const [myIp, setMyIp] = useState('');
   const [myId, setMyId] = useState('your ID');
   const [sendIp, setSendIp] = useState('');
@@ -20,16 +21,44 @@ function App() {
 
   // Select local files.
   const openFile = async () => {
-    var ret = await ipcRenderer.invoke('open-file');
-    if (ret)
-      setItemArray([...itemArray, ...ret]);
+    let ret = await ipcRenderer.invoke('openFile');
+    let passArray = Array();
+    if (ret) {
+      for (let item of ret) {
+        let goodFlag = true;
+        for (let existingItem of itemArray) {
+          if (existingItem.name === item.name && existingItem.dir === item.name) {
+            goodFlag = false;
+            break;
+          }
+        }
+        if (goodFlag) {
+          passArray.push(item);
+        }
+      }
+      setItemArray(itemArray => [...itemArray, ...passArray]);
+    }
   };
 
   // Select local directories.
   const openDirectory = async () => {
-    var ret = await ipcRenderer.invoke('open-directory');
-    if (ret)
-      setItemArray([...itemArray, ...ret]);
+    let ret = await ipcRenderer.invoke('openDirectory');
+    let passArray = Array();
+    if (ret) {
+      for (let item of ret) {
+        let goodFlag = true;
+        for (let existingItem of itemArray) {
+          if (existingItem.name === item.name && existingItem.dir === item.dir) {
+            goodFlag = false;
+            break;
+          }
+        }
+        if (goodFlag) {
+          passArray.push(item);
+        }
+      }
+      setItemArray(itemArray => [...itemArray, ...passArray]);
+    }
   };
 
 
@@ -142,14 +171,14 @@ function App() {
         </div>
       </div>
       <div className="Main">
-        <div className="Box">
-          <ItemView itemArray={itemArray} />
+        <div className="Box1">
+          <ItemView itemArray={itemArray} curDir={itemViewCurDir} setCurDir={setItemViewCurDir} />
+          <button onClick={() => { window.alert('boo!') }} className="TextButton"> Delete Check</button>
           <button onClick={openFile} className="TextButton">Open File</button>
           <button onClick={openDirectory} className="TextButton">Open Folder</button>
         </div>
-        <div className="Box">
+        <div className="Box2">
           <input type="text" onChange={(event) => { setSendIp(event.target.value); }}></input>
-          {/* <button onClick={openDirectory}>Open Directory</button> */}
           <button onClick={send} className="TextButton">Send</button>
           {speed}
         </div>

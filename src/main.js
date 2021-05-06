@@ -38,7 +38,8 @@ function createWindow() {
       enableRemoteModule: false,
       nodeIntegration: false,
       contextIsolation: false
-    }
+    },
+    show: false
   });
 
   if (isDev) {
@@ -68,6 +69,10 @@ function createWindow() {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   mainWindow = createWindow();
+  mainWindow.once('ready-to-show', () => {
+    // Show the window only after fully loaded.
+    mainWindow.show();
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
@@ -90,7 +95,7 @@ app.on('window-all-closed', function () {
 })
 
 // Handle inter process communications with renderer processes.
-ipcMain.handle('open-file', () => {
+ipcMain.handle('openFile', () => {
   let tmp = dialog.showOpenDialogSync(mainWindow, {
     title: "Open File(s)",
     properties: ["openFile", "multiSelections"]
@@ -104,7 +109,7 @@ ipcMain.handle('open-file', () => {
   return ret;
 })
 
-ipcMain.handle('open-directory', async () => {
+ipcMain.handle('openDirectory', async () => {
   let tmp = dialog.showOpenDialogSync(mainWindow, {
     title: "Open Directory(s)",
     properties: ["openDirectory", "multiSelections"]
@@ -113,7 +118,7 @@ ipcMain.handle('open-directory', async () => {
   if (!tmp)
     return ret;
   for (item of tmp) {
-    ret.push({ path: item, name: path.basename(item) });
+    ret.push({ path: item, dir: '.', name: path.basename(item) });
   }
   for (let i = 0; i < ret.length; ++i) {
     let item = ret[i];
@@ -121,7 +126,7 @@ ipcMain.handle('open-directory', async () => {
     if (itemStat.isDirectory()) {
       item.type = 'directory';
       for (let subItem of (await fs.readdir(item.path))) {
-        ret.push({ path: path.join(item.path, subItem), name: path.join(item.name, subItem) });
+        ret.push({ path: path.join(item.path, subItem), dir: path.join(item.dir, item.name), name: subItem });
       }
     }
     else {
