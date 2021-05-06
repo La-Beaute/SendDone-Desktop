@@ -170,7 +170,7 @@ ipcMain.handle('get-send-state', () => {
 
 ipcMain.handle('finish-send', () => {
   if (receiver) {
-    receiver.initServerSocket(myIp);
+    receiver.expose(myIp);
   }
 })
 

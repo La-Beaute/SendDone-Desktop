@@ -112,7 +112,7 @@ class Receiver {
       }
     }
 
-    this.initServerSocket(ip);
+    this.expose(ip);
   }
 
   /**
@@ -120,7 +120,7 @@ class Receiver {
    * Note that the port number is fixed thus cannot be changed.
    * @param {String} ip address. 
    */
-  initServerSocket(ip) {
+  expose(ip) {
     if (!ip) {
       // ip is not set.
       return;
@@ -343,6 +343,9 @@ class Receiver {
               // Ignore any other classes.
             }
             break;
+          case STATE.RECV_BUSY:
+            socket.end();
+            break;
           default:
             // What the hell?
             // Unhandled Receiver state case.
@@ -419,6 +422,15 @@ class Receiver {
    */
   setStateIdle() {
     this._state = STATE.IDLE;
+  }
+
+  /**
+   * Set the current state to BUSY.
+   * This is going to be called before the app is going into send mode,
+   * to prevent receiving activated while sending.
+   */
+  setStateBusy() {
+    this._state = STATE.RECV_BUSY;
   }
 
   /**
