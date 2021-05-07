@@ -51,13 +51,13 @@ class Receiver {
     */
     this._itemHandle = null;
     /**
-     * Array of items. Each item is composed of name, type, and size.
+     * Array of items. Each item is composed of name, dir, type, and size.
      * Size can be omitted if directory.
-     * @type {Array.<{name:String, type:String, size:number}>}
+     * @type {Array.<{name:String, dir:String, type:String, size:number}>}
      */
     this._itemArray = null;
     /**
-     * Name of the current item.
+     * Full name of the current item including directory.
      * @type {String}
      */
     this._itemName = null;
@@ -266,10 +266,10 @@ class Receiver {
               case 'new':
                 if (this._state === STATE.SENDER_STOP)
                   this._state = STATE.RECV;
-                this._itemName = recvHeader.name;
+                this._itemName = path.join(recvHeader.dir, recvHeader.name);
                 if (recvHeader.type === 'directory') {
                   try {
-                    await fs.mkdir(path.join(this._downloadPath, recvHeader.name));
+                    await fs.mkdir(path.join(this._downloadPath, this._itemName));
                   } catch (err) {
                     if (err.code === 'EEXIST') {
                       this._itemFlag = 'ok';

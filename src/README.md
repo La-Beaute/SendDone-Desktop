@@ -79,20 +79,24 @@ Sender connects to receiver and sends the following header first.
   "itemArray": [
     {
       "name": "file_1",
+      "dir": ".",
       "type": "file",
       "size": 1234
     },
     {
       "name": "file_2",
+      "dir": ".",
       "type": "file",
       "size": 4321
     },
     {
       "name": "sub_directory",
+      "dir": ".",
       "type": "directory"
     },
     {
-      "name": "sub_directory/file_1",
+      "name": "file_1",
+      "dir": "sub_directory",
       "type": "file",
       "size": 1000
     }
@@ -142,6 +146,7 @@ If sender wants to send for the first time for this item, header looks like this
 {
   "class": "new",
   "name": "file_1",
+  "dir": ".",
   "type": "file",
   "size": 1000
 }
@@ -150,6 +155,7 @@ If sender wants to send for the first time for this item, header looks like this
 | :--- | :--- |
 | `class` | Always `new`. It means sender want to send this item. |
 | `name` | Name of the item. |
+| `dir` | Directory of the item. If it is at the root, the value is `.`. If a file is inside the folder `folder_1` which is at the root directory, the value is `folder_1`. |
 | `type` | Type of the item. Either `file` or `directory`. |
 | `size` | **Size of the whole item.**<br>Omitted if the item is directory. |
 <br>

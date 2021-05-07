@@ -145,7 +145,7 @@ describe('Send one file', () => {
     const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
-      sender.send([{ name: '1KB', path: orig }], receiverIp);
+      sender.send([{ name: '1KB', dir: '.', path: orig }], receiverIp);
       acceptReceiving(done);
     });
   }).timeout(1000);
@@ -163,7 +163,7 @@ describe('Send one file', () => {
     const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
-      sender.send([{ name: '513MB', path: orig }], receiverIp);
+      sender.send([{ name: '513MB', dir: '.', path: orig }], receiverIp);
       acceptReceiving(done);
     });
   }).timeout(200000);
@@ -182,7 +182,7 @@ describe('Send one file', () => {
     const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
-      sender.send([{ name: '0B', path: orig }], receiverIp);
+      sender.send([{ name: '0B', dir: '.', path: orig }], receiverIp);
       acceptReceiving(done);
     });
   }).timeout(1000);
@@ -212,7 +212,7 @@ describe('Send directories', () => {
     const orig = path.join(tmp1, 'dir');
 
     fs.mkdir(orig).then(() => {
-      sender.send([{ name: 'dir', path: orig }], receiverIp);
+      sender.send([{ name: 'dir', dir: '.', path: orig }], receiverIp);
       acceptReceiving(done);
     });
   });
@@ -234,7 +234,7 @@ describe('Send directories', () => {
     }
     tmp().then(() => {
       for (let i = 0; i < 3; ++i) {
-        arr[i] = { name: 'dir' + i, path: arr[i] };
+        arr[i] = { name: 'dir' + i, dir: '.', path: arr[i] };
       }
       sender.send(arr, receiverIp);
       acceptReceiving(done);
@@ -254,7 +254,7 @@ describe('Send directories', () => {
 
     fs.mkdir(orig).then(() => {
       fs.mkdir(orig1).then(() => {
-        sender.send([{ name: 'dirr', path: orig }, { name: 'dirr/dirrr', path: orig1 }], receiverIp);
+        sender.send([{ name: 'dirr', dir: '.', path: orig }, { name: 'dirrr', dir: 'dirr', path: orig1 }], receiverIp);
         acceptReceiving(done);
       });
     });
@@ -264,7 +264,7 @@ describe('Send directories', () => {
     const dest = path.join(tmp2, 'dirr');
     const dest1 = path.join(tmp2, 'dirr', 'dirrr');
     await fs.access(dest);
-    await fs.rmdir(dest1);
+    await fs.access(dest1);
   });
 })
 
@@ -288,7 +288,7 @@ describe('Test stop while sending', () => {
     const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
-      sender.send([{ name: '513MB', path: orig }], receiverIp);
+      sender.send([{ name: '513MB', dir: '.', path: orig }], receiverIp);
       acceptReceivingStop(done);
     });
   }).timeout(30000);
@@ -307,14 +307,14 @@ describe('Test stop while sending', () => {
       for (let i = 0; i < len; ++i) {
         let dirFlag = (crypto.randomInt(0, 2) === 1 ? true : false);
         if (dirFlag) {
-          arr[i] = { name: 'dir' + i };
+          arr[i] = { name: 'dir' + i, dir: '.' };
           arr[i].path = path.join(tmp1, arr[i].name);
           await fs.mkdir(arr[i].path);
         }
         else {
           const fileLen = crypto.randomInt(0, 1000000);
           const buf = crypto.randomBytes(fileLen);
-          arr[i] = { name: 'file' + i };
+          arr[i] = { name: 'file' + i, dir: '.' };
           arr[i].path = path.join(tmp1, arr[i].name);
           await fs.writeFile(arr[i].path, buf);
         }

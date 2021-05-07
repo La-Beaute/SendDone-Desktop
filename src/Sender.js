@@ -19,10 +19,6 @@ class Sender {
      */
     this._myId = myId;
     /**
-     * Message describing the most recent activity or errors.
-     */
-    this._message = '';
-    /**
      * @type {boolean} 
      */
     this._stopFlag = false;
@@ -35,7 +31,7 @@ class Sender {
      */
     this._socket = null;
     /**
-     * @type {Array.<{name:String, path:String, size:number}>}
+     * @type {Array.<{name:String, dir:String, path:String, size:number}>}
      */
     this._itemArray = null;
     /**
@@ -98,7 +94,7 @@ class Sender {
   /**
    * Create a new client socket with the receiver ip and send items in the array.
    * Call this API from UI.
-   * @param {Array.<{name:String, path:String}>} itemArray
+   * @param {Array.<{name:String, dir:String, path:String}>} itemArray
    * @param {String} receiverIp 
    */
   send(itemArray, receiverIp) {
@@ -110,7 +106,6 @@ class Sender {
     if (this._itemArray.length === 0) {
       // Nothing to send and consider it send complete.
       this._state = STATE.SEND_DONE;
-      this._message = 'Send Complete. Nothing to sent.';
       return;
     }
 
@@ -138,7 +133,6 @@ class Sender {
       try {
         recvHeader = JSON.parse(ret.header);
       } catch (err) {
-        this._message = 'Received corrupted header from receiver.';
         this._handleNetworkErr();
         return;
       }
@@ -350,6 +344,7 @@ class Sender {
           header = {
             class: 'new',
             name: this._itemArray[this._index].name,
+            dir: this._itemArray[this._index].dir,
             type: 'directory'
           };
           this._goToNextItem();
@@ -361,6 +356,7 @@ class Sender {
           header = {
             class: 'new',
             name: this._itemArray[this._index].name,
+            dir: this._itemArray[this._index].dir,
             type: 'file',
             size: itemStat.size
           };
@@ -407,7 +403,7 @@ class Sender {
   /**
    * Create and return send request header.
    * Return null on Any Error.
-   * @returns {Promise<{app:String, version: String, class: String, itemArray:Array.<{name:String, type:String, size:number}>}>}
+   * @returns {Promise<{app:String, version: String, class: String, itemArray:Array.<{name:String, dir:String, type:String, size:number}>}>}
    */
   async _createSendRequestHeader() {
     let header = { app: 'SendDone', version: VERSION, class: 'send-request', id: this._myId, itemArray: [] };
@@ -419,16 +415,15 @@ class Sender {
       try {
         itemStat = await fs.stat(item.path);
       } catch (err) {
-        this._state = STATE.ERROR;
-        this._message = 'Could not read ' + item.path;
+        this._state = STATE.ERR_FS;
         return null;
       }
       let itemHeader = null;
       if (itemStat.isDirectory()) {
-        itemHeader = this._createDirectoryHeader(item.name);
+        itemHeader = this._createDirectoryHeader(item.name, item.dir);
       }
       else {
-        itemHeader = this._createFileHeader(item.name, itemStat.size);
+        itemHeader = this._createFileHeader(item.name, item.dir, itemStat.size);
       }
       header.itemArray.push(itemHeader);
     }
@@ -436,21 +431,23 @@ class Sender {
   }
 
   /**
-   * @param {String} name name of the item.
+   * @param {String} name Name of the item.
+   * @param {String} dir Directory of the item.
    * @param {number} size Size of the item.
    * @returns {{name:String, type: String, size: number}} 
    */
-  _createFileHeader(name, size) {
-    const header = { name: name, type: 'file', size: size }
+  _createFileHeader(name, dir, size) {
+    const header = { name: name, dir: dir, type: 'file', size: size }
     return header;
   }
 
   /**
    * @param {String} name name of the item.
+   * @param {String} dir Directory of the item.
    * @returns {{name:String, type: String}} 
    */
-  _createDirectoryHeader(name) {
-    const header = { name: name, type: 'directory' }
+  _createDirectoryHeader(name, dir) {
+    const header = { name: name, dir: dir, type: 'directory' }
     return header;
   }
 
