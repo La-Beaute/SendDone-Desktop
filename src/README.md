@@ -155,7 +155,7 @@ If sender wants to send for the first time for this item, header looks like this
 | :--- | :--- |
 | `class` | Always `new`. It means sender want to send this item. |
 | `name` | Name of the item. |
-| `dir` | Directory of the item. If it is at the root, the value is `.`. If a file is inside the folder `folder_1` which is at the root directory, the value is `folder_1`. |
+| `dir` | Directory of the item. If it is at the root, the value is `.`. <br>If a file is inside the folder `folder_1` which is at the root directory, the value is `folder_1`. |
 | `type` | Type of the item. Either `file` or `directory`. |
 | `size` | **Size of the whole item.**<br>Omitted if the item is directory. |
 <br>
