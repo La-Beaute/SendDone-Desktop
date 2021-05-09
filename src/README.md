@@ -83,6 +83,7 @@ Each item has following properties:
 | Key | Description |
 | :--- | :--- |
 | `dir` | Relative directory of the item. |
+| `path` | The full path of the item. Used to actually access the item. |
 | `type` | Either `file` or `directory`. |
 | `size` | Size of the file. Only for `file` type item. |
 | `items` | The object which contains nested items. Only for `directory` type item. |
@@ -168,7 +169,7 @@ The following describes the header in sender's perspective.
 | `app` | `SendDone` is fixed value. |
 | `version` | the version of sender's `SendDone` app. |
 | `class` | `send-request` is fixed value. |
-| `itemArray` | The array of items to send and receive.<br>File consists of `name`, `type`, and `size`.<br>Directory consists of `name` and `type`. |
+| `items` | The object which has items to send and receive.<br>Refer to [3. File System](#3-file-system). |
 
 Then, sender waits for receiver to send a sign.
 <br>
