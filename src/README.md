@@ -1,8 +1,9 @@
 # Section
 > [1. Basic Idea](#1-basic-idea)<br>
 > [2. Scan](#2-scan)<br>
-> [3. Send Request](#3-send-request)<br>
-> [4. While Sending and Receiving](#4-while-sending-and-receiving)<br>
+> [3. File System](#3-file-system)<br>
+> [4. Send Request](#4-send-request)<br>
+> [5. While Sending and Receiving](#5-while-sending-and-receiving)<br>
 
 `src/networking.js` is the underline implementation of TCP networks and file write and read.<br>
 Receiver always opens a server socket, and sender always connects to the server socket as a client.<br>
@@ -68,7 +69,73 @@ then it sends back this header to the scanner:
 ```
 <br>
 
-# 3. Send Request
+# 3. File System
+**Note** that defining file system in `SendDone` is not easy, and is very subject to changes.<br>
+
+An item is either a file or a directory.
+There is always a root directory referred to as `"."`.<br>
+Every item **directly** inside this root directory has `dir` property `"."`.
+<br>
+And inside those items at the root directory each item can have nested sub items,<br>
+forming a tree-like structure.<br>
+
+Each item has following properties:
+| Key | Description |
+| :--- | :--- |
+| `path` | The full path of the item. Used to actually access the item. |
+| `name` | The name of the item. |
+| `dir` | Relative directory of the item. |
+| `type` | Either `file` or `directory`. |
+| `size` | Size of the file. Only for `file` type item. |
+| `items` | The object which contains nested items. Only for `directory` type item. |
+<br>
+
+For example say a user added the following items.
+```console
+file_1
+file_2
+directory_1
+```
+And inside directory_1, there is a nested file called file_3.<br>
+Then the structure will look like this:
+```json
+{
+  "items": {
+    "file_1": {
+      "path": "/home/user_1/file_1",
+      "name": "file_1",
+      "dir": ".",
+      "type": "file",
+      "size": 1024
+    },
+    "file_2": {
+      "path": "/home/user_1/file_2",
+      "name": "file_2",
+      "dir": ".",
+      "type": "file",
+      "size": 1000
+    },
+    "directory_1": {
+      "path": "/home/user_1/directory_1",
+      "name": "directory_1",
+      "dir": ".",
+      "type": "directory",
+      "items": {
+        "file_3": {
+          "path": "/home/user_1/directory_1/file_3",
+          "name": "file_3",
+          "dir": "directory_1",
+          "type": "file",
+          "size": 123
+        }
+      }
+    }
+  }
+}
+```
+<br>
+
+# 4. Send Request
 Sender connects to receiver and sends the following header first.
 ```json
 {
@@ -76,27 +143,29 @@ Sender connects to receiver and sends the following header first.
   "version": "0.1.0",
   "class": "send-request",
   "id": "device_1",
-  "itemArray": [
-    {
-      "name": "file_1",
+  "items": {
+    "file_1": {
+      "dir": ".",
       "type": "file",
-      "size": 1234
+      "size": 1024
     },
-    {
-      "name": "file_2",
-      "type": "file",
-      "size": 4321
-    },
-    {
-      "name": "sub_directory",
-      "type": "directory"
-    },
-    {
-      "name": "sub_directory/file_1",
+    "file_2": {
+      "dir": ".",
       "type": "file",
       "size": 1000
+    },
+    "directory_1": {
+      "dir": ".",
+      "type": "directory",
+      "items": {
+        "file_3": {
+          "dir": "directory_1",
+          "type": "file",
+          "size": 123
+        }
+      }
     }
-  ]
+  }
 }
 ```
 The above `json` data is stringified and followed by `\n\n`, which notifies the end of the header, as stated [above](#basic-idea).<br>
@@ -109,7 +178,7 @@ The following describes the header in sender's perspective.
 | `app` | `SendDone` is fixed value. |
 | `version` | the version of sender's `SendDone` app. |
 | `class` | `send-request` is fixed value. |
-| `itemArray` | The array of items to send and receive.<br>File consists of `name`, `type`, and `size`.<br>Directory consists of `name` and `type`.
+| `items` | The object which has items to send and receive.<br>Refer to [3. File System](#3-file-system). |
 
 Then, sender waits for receiver to send a sign.
 <br>
@@ -142,6 +211,7 @@ If sender wants to send for the first time for this item, header looks like this
 {
   "class": "new",
   "name": "file_1",
+  "dir": ".",
   "type": "file",
   "size": 1000
 }
@@ -150,6 +220,7 @@ If sender wants to send for the first time for this item, header looks like this
 | :--- | :--- |
 | `class` | Always `new`. It means sender want to send this item. |
 | `name` | Name of the item. |
+| `dir` | Directory of the item. If it is at the root, the value is `.`. <br>If a file is inside the folder `folder_1` which is at the root directory, the value is `folder_1`. |
 | `type` | Type of the item. Either `file` or `directory`. |
 | `size` | **Size of the whole item.**<br>Omitted if the item is directory. |
 <br>

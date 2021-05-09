@@ -145,7 +145,7 @@ describe('Send one file', () => {
     const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
-      sender.send([{ name: '1KB', path: orig }], receiverIp);
+      sender.send({ '1KB': { name: '1KB', dir: '.', path: orig } }, receiverIp);
       acceptReceiving(done);
     });
   }).timeout(1000);
@@ -163,7 +163,7 @@ describe('Send one file', () => {
     const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
-      sender.send([{ name: '513MB', path: orig }], receiverIp);
+      sender.send({ '513MB': { name: '513MB', dir: '.', path: orig } }, receiverIp);
       acceptReceiving(done);
     });
   }).timeout(200000);
@@ -182,7 +182,7 @@ describe('Send one file', () => {
     const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
-      sender.send([{ name: '0B', path: orig }], receiverIp);
+      sender.send({ '0B': { name: '0B', dir: '.', path: orig } }, receiverIp);
       acceptReceiving(done);
     });
   }).timeout(1000);
@@ -212,7 +212,7 @@ describe('Send directories', () => {
     const orig = path.join(tmp1, 'dir');
 
     fs.mkdir(orig).then(() => {
-      sender.send([{ name: 'dir', path: orig }], receiverIp);
+      sender.send({ 'dir': { name: 'dir', dir: '.', path: orig } }, receiverIp);
       acceptReceiving(done);
     });
   });
@@ -233,10 +233,11 @@ describe('Send directories', () => {
       return;
     }
     tmp().then(() => {
+      let items = {};
       for (let i = 0; i < 3; ++i) {
-        arr[i] = { name: 'dir' + i, path: arr[i] };
+        items['dir' + i] = { name: 'dir' + i, dir: '.', path: arr[i] };
       }
-      sender.send(arr, receiverIp);
+      sender.send(items, receiverIp);
       acceptReceiving(done);
     })
   });
@@ -254,7 +255,7 @@ describe('Send directories', () => {
 
     fs.mkdir(orig).then(() => {
       fs.mkdir(orig1).then(() => {
-        sender.send([{ name: 'dirr', path: orig }, { name: 'dirr/dirrr', path: orig1 }], receiverIp);
+        sender.send({ 'dirr': { name: 'dirr', dir: '.', path: orig, items: { 'dirrr': { name: 'dirrr', dir: 'dirr', path: orig1 } } } }, receiverIp);
         acceptReceiving(done);
       });
     });
@@ -264,7 +265,7 @@ describe('Send directories', () => {
     const dest = path.join(tmp2, 'dirr');
     const dest1 = path.join(tmp2, 'dirr', 'dirrr');
     await fs.access(dest);
-    await fs.rmdir(dest1);
+    await fs.access(dest1);
   });
 })
 
@@ -278,7 +279,7 @@ describe('Test stop while sending', () => {
   });
 
   after(async () => {
-    await delTmpDir();
+    // await delTmpDir();
     receiver.closeServerSocket();
   });
 
@@ -288,7 +289,7 @@ describe('Test stop while sending', () => {
     const buf = crypto.randomBytes(len);
 
     fs.writeFile(orig, buf, { flag: 'w' }).then(() => {
-      sender.send([{ name: '513MB', path: orig }], receiverIp);
+      sender.send({ '513MB': { name: '513MB', dir: '.', path: orig } }, receiverIp);
       acceptReceivingStop(done);
     });
   }).timeout(30000);
@@ -301,40 +302,40 @@ describe('Test stop while sending', () => {
   }).timeout(10000);
 
   var len = 3000;
-  let arr = Array(len);
+  let items = {};
   it('Stop while sending 3000 files and directories', (done) => {
     async function tmp() {
       for (let i = 0; i < len; ++i) {
         let dirFlag = (crypto.randomInt(0, 2) === 1 ? true : false);
         if (dirFlag) {
-          arr[i] = { name: 'dir' + i };
-          arr[i].path = path.join(tmp1, arr[i].name);
-          await fs.mkdir(arr[i].path);
+          items['dir' + i] = { name: 'dir' + i, dir: '.' };
+          items['dir' + i].path = path.join(tmp1, items['dir' + i].name);
+          await fs.mkdir(items['dir' + i].path);
         }
         else {
           const fileLen = crypto.randomInt(0, 1000000);
           const buf = crypto.randomBytes(fileLen);
-          arr[i] = { name: 'file' + i };
-          arr[i].path = path.join(tmp1, arr[i].name);
-          await fs.writeFile(arr[i].path, buf);
+          items['dir' + i] = { name: 'dir' + i, dir: '.' };
+          items['dir' + i].path = path.join(tmp1, items['dir' + i].name);
+          await fs.writeFile(items['dir' + i].path, buf);
         }
       }
       return;
     }
     tmp().then(() => {
       console.log('Creating done');
-      sender.send(arr, receiverIp);
+      sender.send(items, receiverIp);
       acceptReceivingStop(done);
     })
   }).timeout(30000);
 
   it('Check 3000 files and directories', async () => {
-    for (let i = 0; i < len; ++i) {
-      if (arr[i].name.includes('dir')) {
-        await fs.access(path.join(tmp2, arr[i].name));
+    for (let itemName in items) {
+      if (items[itemName].name.includes('dir')) {
+        await fs.access(path.join(tmp2, items[itemName].name));
       }
       else {
-        await diffFiles(arr[i].path, path.join(tmp2, arr[i].name));
+        await diffFiles(items[itemName].path, path.join(tmp2, items[itemName].name));
       }
     }
   }).timeout(10000);

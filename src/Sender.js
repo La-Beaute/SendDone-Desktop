@@ -3,10 +3,14 @@ const fs = require('fs').promises;
 const { Stats } = require('fs');
 const { PORT, STATE, HEADER_END, VERSION, CHUNKSIZE, _splitHeader } = require('./Network');
 
+/**
+ * @typedef {{dir:string, path:string, type:string, size:number, items:Object.<string, any>}} item
+ */
+
 class Sender {
   /**
    * 
-   * @param {String} myId 
+   * @param {string} myId 
    */
   constructor(myId) {
     this._state = STATE.IDLE;
@@ -15,13 +19,9 @@ class Sender {
       return;
     }
     /**
-     * @type {String} my id.
+     * @type {string} my id.
      */
     this._myId = myId;
-    /**
-     * Message describing the most recent activity or errors.
-     */
-    this._message = '';
     /**
      * @type {boolean} 
      */
@@ -35,7 +35,8 @@ class Sender {
      */
     this._socket = null;
     /**
-     * @type {Array.<{name:String, path:String, size:number}>}
+     * Normalized item array.
+     * @type {Array.<path:string, dir:string, name:string, type:string, size:number>}
      */
     this._itemArray = null;
     /**
@@ -52,7 +53,7 @@ class Sender {
      */
     this._itemHandle = null;
     /**
-     * @type {number} Index in itemArray.
+     * @type {number} Index in the item array.
      */
     this._index = 0;
     /**
@@ -98,26 +99,26 @@ class Sender {
   /**
    * Create a new client socket with the receiver ip and send items in the array.
    * Call this API from UI.
-   * @param {Array.<{name:String, path:String}>} itemArray
-   * @param {String} receiverIp 
+   * @param {Object.<string, {dir:string, path:string, type:string, size:number}>} items
+   * @param {string} receiverIp 
    */
-  send(itemArray, receiverIp) {
+  async send(items, receiverIp) {
     this._state = STATE.SEND_REQUEST;
-    this._itemArray = itemArray;
+    this._itemArray = [];
     this._index = 0;
     this._speedBytes = 0;
 
-    if (this._itemArray.length === 0) {
+    await this._createItemArray(items);
+    if (this.getTotalNumItems() === 0) {
       // Nothing to send and consider it send complete.
       this._state = STATE.SEND_DONE;
-      this._message = 'Send Complete. Nothing to sent.';
       return;
     }
 
     this._socket = net.createConnection(PORT, receiverIp);
     this._socket.on('connect', async () => {
       console.log('client socket connected to ' + this._socket.remoteAddress);
-      let sendRequestHeader = await this._createSendRequestHeader(this._itemArray);
+      let sendRequestHeader = this._createSendRequestHeader(items);
       if (sendRequestHeader === null) {
         this._socket.end();
         return;
@@ -138,7 +139,6 @@ class Sender {
       try {
         recvHeader = JSON.parse(ret.header);
       } catch (err) {
-        this._message = 'Received corrupted header from receiver.';
         this._handleNetworkErr();
         return;
       }
@@ -277,6 +277,28 @@ class Sender {
   }
 
   /**
+   * Return the total number of items.
+   * @returns {number}
+   */
+  getTotalNumItems() {
+    return this._itemArray.length;
+  }
+  /**
+   * Return the number of nested items.
+   * @param {item} item
+   * @returns {number}
+   */
+  getNumItems(item) {
+    let ret = 0;
+    for (let subItem in item.items) {
+      ++ret;
+      if (item.type === 'directory')
+        ret += this.getNumItems(subItem);
+    }
+    return ret;
+  }
+
+  /**
    * Return the # of bytes per second.
    * If the # of bytes or the interval is 0, return previous measured speed.
    * @returns {number}
@@ -350,6 +372,7 @@ class Sender {
           header = {
             class: 'new',
             name: this._itemArray[this._index].name,
+            dir: this._itemArray[this._index].dir,
             type: 'directory'
           };
           this._goToNextItem();
@@ -361,6 +384,7 @@ class Sender {
           header = {
             class: 'new',
             name: this._itemArray[this._index].name,
+            dir: this._itemArray[this._index].dir,
             type: 'file',
             size: itemStat.size
           };
@@ -407,50 +431,79 @@ class Sender {
   /**
    * Create and return send request header.
    * Return null on Any Error.
-   * @returns {Promise<{app:String, version: String, class: String, itemArray:Array.<{name:String, type:String, size:number}>}>}
+   * @returns {{app:string, version: string, class: string, items:Object.<string, item>}}
    */
-  async _createSendRequestHeader() {
-    let header = { app: 'SendDone', version: VERSION, class: 'send-request', id: this._myId, itemArray: [] };
-    /**
-     * @type {Stats}
-     */
-    let itemStat = null;
-    for (let item of this._itemArray) {
-      try {
-        itemStat = await fs.stat(item.path);
-      } catch (err) {
-        this._state = STATE.ERROR;
-        this._message = 'Could not read ' + item.path;
-        return null;
+  _createSendRequestHeader() {
+    let header = { app: 'SendDone', version: VERSION, class: 'send-request', id: this._myId, items: {} };
+    header.items = this._deepCopyItems(undefined, this._items, true);
+    return header;
+  }
+
+  /**
+   * Deep copy items Object and return the result.
+   * When calling the function, let dst value undefined.
+   * @param {Object.<string, item>} items
+   * @param {boolean} noPath
+   */
+  _deepCopyItems(dst, items, noPath) {
+    let retFlag = false;
+    if (dst === undefined) {
+      retFlag = true;
+      dst = {};
+    }
+    for (let itemName in items) {
+      dst[itemName] = {};
+      for (let key in items[itemName]) {
+        if (key === 'items') {
+          // Deep copy it.
+          this._deepCopyItems(dst[itemName], items[itemName], noPath);
+        }
+        else if (key !== 'path' || !noPath)
+          dst[itemName][key] = itesm[itemName][key];
       }
-      let itemHeader = null;
+    }
+    if (retFlag)
+      return dst;
+  }
+
+  /**
+   * Normalize tree structure items into serialized item array.
+   * Before calling the function, be sure that this._itemArray is an empty array.
+   * @param {Object.<string, item>} items
+   */
+  async _createItemArray(items) {
+    for (let itemName in items) {
+      let itemStat = await fs.stat(items[itemName].path);
       if (itemStat.isDirectory()) {
-        itemHeader = this._createDirectoryHeader(item.name);
+        this._itemArray.push(this._createDirectoryHeader(items[itemName].path, items[itemName].name, items[itemName].dir));
+        await this._createItemArray(items[itemName].items);
       }
       else {
-        itemHeader = this._createFileHeader(item.name, itemStat.size);
+        this._itemArray.push(this._createFileHeader(items[itemName].path, items[itemName].name, items[itemName].dir, itemStat.size));
       }
-      header.itemArray.push(itemHeader);
     }
-    return header;
   }
 
   /**
-   * @param {String} name name of the item.
+   * @param {string} path Path of the item.
+   * @param {string} name Name of the item.
+   * @param {string} dir Directory of the item.
    * @param {number} size Size of the item.
-   * @returns {{name:String, type: String, size: number}} 
+   * @returns {{name:string, type: string, size: number}} 
    */
-  _createFileHeader(name, size) {
-    const header = { name: name, type: 'file', size: size }
+  _createFileHeader(path, name, dir, size) {
+    const header = { path: path, name: name, dir: dir, type: 'file', size: size }
     return header;
   }
 
   /**
-   * @param {String} name name of the item.
-   * @returns {{name:String, type: String}} 
+   * @param {string} path Path of the item.
+   * @param {string} name name of the item.
+   * @param {string} dir Directory of the item.
+   * @returns {{name:string, type: string}} 
    */
-  _createDirectoryHeader(name) {
-    const header = { name: name, type: 'directory' }
+  _createDirectoryHeader(path, name, dir) {
+    const header = { path: path, name: name, dir: dir, type: 'directory' }
     return header;
   }
 

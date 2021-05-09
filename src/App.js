@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ItemView from './components/ItemView';
 import './App.css';
 // Below lines are importing modules from window object.
 // Look at 'preload.js' for more understanding.
@@ -8,8 +9,11 @@ const STATE = window.STATE;
 let startTime;
 
 function App() {
-  const [itemArray, setItemArray] = useState([]);
-  const [ip, setIp] = useState(null);
+  const [items, setItems] = useState({});
+  const [checkedItems, setCheckedItems] = useState({});
+  const [itemViewCurDir, setItemViewCurDir] = useState('');
+  const [myIp, setMyIp] = useState('');
+  const [myId, setMyId] = useState('your ID');
   const [sendIp, setSendIp] = useState('');
   const [networks, setNetworks] = useState([]);
   const [speed, setSpeed] = useState('');
@@ -18,21 +22,26 @@ function App() {
 
   // Select local files.
   const openFile = async () => {
-    var ret = await ipcRenderer.invoke('open-file');
-    if (ret)
-      setItemArray([...itemArray, ...ret]);
+    let ret = await ipcRenderer.invoke('openFile');
+    setItems(items => Object.assign({}, ret, items));
   };
 
   // Select local directories.
-  /*   const openDirectory = async () => {
-      var ret = await ipcRenderer.invoke('open-directory');
-      if (ret)
-        setItemList([...itemList, ...ret]);
-    }; */
+  const openDirectory = async () => {
+    let ret = await ipcRenderer.invoke('openDirectory');
+    setItems(items => Object.assign({}, ret, items));
+  }
 
-  const listItems = itemArray.map((item) => {
-    return <div className="ItemElement" key={item.path}>{item.path + ' | ' + item.name}</div>;
-  });
+  const deleteCheckedItems = () => {
+    setItems(items => {
+      let tmp = { ...items };
+      for (let itemName in checkedItems) {
+        delete tmp[itemName];
+      }
+      return tmp;
+    });
+    setCheckedItems({});
+  }
 
   const getNetworks = async () => {
     const ret = await ipcRenderer.invoke('get-networks');
@@ -41,7 +50,7 @@ function App() {
   }
 
   const send = () => {
-    ipcRenderer.invoke('send', { ip: sendIp, itemArray: itemArray });
+    ipcRenderer.invoke('send', { ip: sendIp, items: items });
     startTime = Date.now();
     sendStateHandler = setInterval(() => { getSendState() }, 500);
   }
@@ -62,13 +71,15 @@ function App() {
   }
 
   const getRecvState = async () => {
-    const ret = await ipcRenderer.invoke('get-recv-state');
+    const ret = await ipcRenderer.invoke('getRecvState');
     if (ret.state === STATE.RECV_WAIT) {
       let input = window.confirm('Want to receive?');
       if (input) {
-        ipcRenderer.invoke('recv');
+        ipcRenderer.invoke('acceptRecv');
       }
-      setSpeed('Waiting...');
+      else {
+        ipcRenderer.invoke('rejectRecv');
+      }
     }
     else if (ret.state === STATE.RECV) {
       setSpeed(ret.speed);
@@ -76,31 +87,35 @@ function App() {
     else if (ret.state === STATE.RECV_DONE) {
       setSpeed('Done!');
     }
+    else if (ret.state === STATE.ERR_FS) {
+      // TODO Handle error.
+    }
+    else if (ret.state === STATE.ERR_NET) {
+      // TODO Handle error.
+    }
   }
 
   const listNetworks = networks.map((network) => {
-    return <option value={network.ip} key={network.ip}>{network.name} | {network.ip} | {network.netmask}</option>;
+    return <option value={network.ip} key={network.ip}>{network.name} | {network.ip}</option>;
   });
 
-  const handleNetworkChange = (event) => {
-    setIp(event.target.value);
-  }
-
-  const initServerSocket = async () => {
-    ipcRenderer.invoke('init-server-socket', { ip: ip, itemArray: itemArray });
+  const openServerSocket = async () => {
+    ipcRenderer.invoke('openServerSocket', { ip: myIp });
   }
 
   const closeServerSocket = async () => {
-    ipcRenderer.invoke('close-server-socket');
+    let ret = await ipcRenderer.invoke('closeServerSocket');
+    return ret;
   }
 
   // useEffect is something like componentDidMount in React class component.
   // Add something that needs to be called after loading this component such as getting the network list.
   useEffect(() => {
     const intervalFun = async () => {
-      let ret = await ipcRenderer.invoke('is-server-socket-open');
+      let ret = await ipcRenderer.invoke('isServerSocketOpen');
       setServerSocketOpen(ret);
       if (ret)
+        // Get receiver state only when the server socket is open.
         getRecvState();
     }
     getNetworks();
@@ -109,27 +124,46 @@ function App() {
     return () => clearInterval(intervalHandler);
   }, []);
 
+
   return (
     <div className="App">
       <div className="Head">
-        <select onChange={handleNetworkChange}>
-          {listNetworks}
-        </select>
+        <div className="Head-Header">
+          SendDone
+          <br />
+          Hi, {myId}!
+        </div>
+        <div className="Head-Buttons">
+          <select onChange={(e) => {
+            setMyIp(e.target.value);
+            if (serverSocketOpen) {
+              // Close and re open server socket.
+              closeServerSocket().then(openServerSocket);
+            }
+          }}>
+            {listNetworks}
+          </select>
+          {serverSocketOpen
+            ?
+            <button onClick={closeServerSocket} className="TextButton ServerStatOpen">Close Server</button>
+            :
+            <button onClick={openServerSocket} className="TextButton ServerStatClose">Open Server</button>
+          }
+          <button className="TextButton">Settings</button>
+        </div>
       </div>
-      <div className="Box1">
-        <button onClick={openFile}>Open File</button>
-        {/* <button onClick={openDirectory}>Open Directory</button> */}
-        <button onClick={initServerSocket}>Open Server</button>
-        <button onClick={closeServerSocket}>Close Server</button>
-        <div className={serverSocketOpen ? "ServerStatOpen" : "ServerStatClose"} />
-      </div>
-      <div className="Box1">
-        <input type="text" onChange={(event) => { setSendIp(event.target.value) }}></input>
-        <button onClick={send}>Send</button>
-        {speed}
-      </div>
-      <div className="ItemList">
-        {listItems}
+      <div className="Main">
+        <div className="Box1">
+          <ItemView items={items} curDir={itemViewCurDir} setCurDir={setItemViewCurDir} checkedItems={checkedItems} setCheckedItems={setCheckedItems} />
+          <button onClick={() => { deleteCheckedItems(); }} className="TextButton"> Delete Check</button>
+          <button onClick={openFile} className="TextButton">Open File</button>
+          <button onClick={openDirectory} className="TextButton">Open Folder</button>
+        </div>
+        <div className="Box2">
+          <input type="text" onChange={(event) => { setSendIp(event.target.value); }}></input>
+          <button onClick={send} className="TextButton">Send</button>
+          {speed}
+        </div>
       </div>
     </div>
   );
