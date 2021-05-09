@@ -551,7 +551,7 @@ class Receiver {
       return false;
     if (header.version !== VERSION)
       return false;
-    if (!header.itemArray)
+    if (!header.items)
       return false;
     return true;
   }

@@ -95,43 +95,60 @@ app.on('window-all-closed', function () {
 })
 
 // Handle inter process communications with renderer processes.
-ipcMain.handle('openFile', () => {
+ipcMain.handle('openFile', async () => {
   let tmp = dialog.showOpenDialogSync(mainWindow, {
     title: "Open File(s)",
     properties: ["openFile", "multiSelections"]
   });
-  let ret = Array();
+  let ret = {};
   if (!tmp)
     return ret;
   for (item of tmp) {
-    ret.push({ path: item, dir: '.', name: path.basename(item), type: 'file' });
+    try {
+      let size = (await fs.stat(item)).size;
+      ret[path.basename(item)] = { path: item, name: path.basename(item), dir: '.', type: 'file', size: size };
+    } catch (err) {
+      // Maybe No permission or file system error. Skip it.
+    }
   }
   return ret;
 })
 
 ipcMain.handle('openDirectory', async () => {
+  /**
+   * Sub item will be added to the parameter item Object recursively.
+   * @param {{ path: string, name:string, dir: string }} item 
+   */
+  async function addSubItems(item) {
+    try {
+      let itemStat = await fs.stat(item.path);
+      if (itemStat.isDirectory()) {
+        item.type = 'directory';
+        item.items = {};
+        for (let subItem of (await fs.readdir(item.path))) {
+          item.items[subItem] = { path: path.join(item.path, subItem), name: subItem, dir: path.join(item.dir, item.name) };
+          await addSubItems(item.items[subItem]);
+        }
+      }
+      else {
+        item.type = 'file';
+        item.size = (await fs.stat(item.path)).size;
+      }
+    } catch (err) {
+      // Maybe No permission or file system error. Skip it.
+    }
+    return;
+  }
   let tmp = dialog.showOpenDialogSync(mainWindow, {
     title: "Open Directory(s)",
     properties: ["openDirectory", "multiSelections"]
   });
-  let ret = Array();
+  let ret = {};
   if (!tmp)
     return ret;
-  for (item of tmp) {
-    ret.push({ path: item, dir: '.', name: path.basename(item) });
-  }
-  for (let i = 0; i < ret.length; ++i) {
-    let item = ret[i];
-    let itemStat = await fs.stat(item.path);
-    if (itemStat.isDirectory()) {
-      item.type = 'directory';
-      for (let subItem of (await fs.readdir(item.path))) {
-        ret.push({ path: path.join(item.path, subItem), dir: path.join(item.dir, item.name), name: subItem });
-      }
-    }
-    else {
-      item.type = 'file';
-    }
+  for (let item of tmp) {
+    ret[path.basename(item)] = { path: item, name: path.basename(item), dir: '.', type: 'directory', items: {} };
+    await addSubItems(ret[path.basename(item)]);
   }
   return ret;
 })
@@ -172,10 +189,10 @@ ipcMain.handle('send', (event, arg) => {
     receiver.setStateBusy();
   }
   const ip = arg.ip;
-  const itemArray = arg.itemArray;
+  const itmes = arg.items;
   if (!sender) {
     sender = new Sender('id');
-    sender.send(itemArray, ip);
+    sender.send(items, ip);
   }
 })
 

@@ -1,79 +1,122 @@
-import React, { useState } from 'react';
-import path from 'path';
+import React, { useState, useEffect } from 'react';
 import './ItemView.css';
+
 
 /**
  * 
- * @param {{itemArray:Array.<{path:string, dir: string, name:string, type:'file'|'directory'}>, curDir:string, setCurDir:function}} itemArray 
+ * @param {{items:Array.<{path:string, dir: string, name:string, type:'file'|'directory'}>, curDir:string, setCurDir:function, checkedItems:{}, setCheckedItems:function}} items 
  * @returns 
  */
-function ItemView({ itemArray, curDir, setCurDir }) {
-  const showItems = itemArray.map((item) => {
-    if (item.dir !== curDir) {
-      return null;
-    }
-    if (item.type === 'directory')
-      return (
-        <tr className="ItemElement" key={item.path} onClick={(e) => { setCurDir(window.path.join(item.dir, item.name)); }}>
-          <td>Folder</td>
-          <td>{item.name}</td>
-          <td><input type="checkbox"></input></td>
-        </tr>
-      );
-    else
-      return (
-        <tr className="ItemElement" key={item.path}>
-          <td>File</td>
-          <td>{item.name}</td>
-          <td><input type="checkbox"></input></td>
-        </tr>
-      );
-  });
+function ItemView({ items, curDir, setCurDir, checkedItems, setCheckedItems }) {
+  let [checkAll, setCheckAll] = useState(false);
 
-  const showCurDir = () => {
-    let ret = [<button onClick={goHome}>Home</button>];
-    if (curDir.startsWith('.'))
-      return ret;
-    let dirArray = curDir.split(window.path.sep);
-    let cumulativeDir = '';
-    for (let i = 0; i < dirArray.length; ++i) {
-      ret.push('>');
-      cumulativeDir = window.path.join(cumulativeDir, dirArray[i]);
-      let tmp = cumulativeDir;
-      ret.push(<button key={tmp} onClick={() => { setCurDir(tmp); }}>{dirArray[i]}</button>);
+  const showItems = () => {
+    let ret = [];
+    for (let itemName in items) {
+      let item = items[itemName];
+      if (item.type === 'directory') {
+        ret.push(
+          <div className='ItemElement' key={item.dir + item.name}>
+            <div className='ItemName'>
+              📁 | {item.name}
+            </div>
+            <div>
+              <input type='checkbox' checked={() => {
+                console.log(checkAll);
+                return (item.name in checkedItems) || checkAll;
+              }}
+                onChange={(e) => { handleItemCheck(e.target.checked, item.name); }} />
+            </div>
+          </div>
+        );
+      }
+      else {
+        ret.push(
+          <div className='ItemElement' key={item.dir + item.name}>
+            <div className='ItemName'>
+              File | {item.name}
+            </div>
+            <div>
+              <input type='checkbox' checked={(item.name in checkedItems) || checkAll}
+                onChange={(e) => { handleItemCheck(e.target.checked, item.name); }} />
+            </div>
+          </div>
+        );
+      }
     }
     return ret;
   }
 
-  const goHome = () => {
-    setCurDir('.');
+  const handleItemCheck = (checked, name) => {
+    if (checked) {
+      setCheckedItems(checkedItems => ({ ...checkedItems, [name]: true }));
+    }
+    else {
+      setCheckedItems(checkedItems => {
+        const tmp = { ...checkedItems };
+        delete tmp[name];
+        return tmp;
+      });
+      setCheckAll(false);
+    }
   }
 
+  // const showCurDir = () => {
+  //   let ret = [<button key='Home' onClick={goHome}>Home</button>];
+  //   if (curDir.startsWith('.'))
+  //     return ret;
+  //   let dirArray = curDir.split(window.path.sep);
+  //   let cumulativeDir = '';
+  //   for (let i = 0; i < dirArray.length; ++i) {
+  //     ret.push('>');
+  //     cumulativeDir = window.path.join(cumulativeDir, dirArray[i]);
+  //     let tmp = cumulativeDir;
+  //     ret.push(<button key={tmp} onClick={() => { setCurDir(tmp); }}>{dirArray[i]}</button>);
+  //   }
+  //   return ret;
+  // }
+
+  // const goHome = () => {
+  //   setCurDir('.');
+  // }
+
+  useEffect(() => {
+    let numCheckedItems = Object.keys(checkedItems).length;
+    let numItems = Object.keys(items).length;
+    console.log(numCheckedItems, numItems);
+    if (numItems > 0 && numCheckedItems === numItems)
+      setCheckAll(true);
+    else
+      setCheckAll(false);
+  }, [checkAll, items, checkedItems]);
+
   return (
-    <div className="ItemView">
-      <div>
-        <div>
-          {showCurDir()}
+    <div className='ItemView'>
+      <div className='ItemViewTable'>
+        <div className='ItemElement ItemHead'>
+          <div className='ItemName'>
+            {/* {showCurDir()} */}
+          </div>
+          <div>
+            <input type='checkbox' checked={checkAll} onChange={(e) => {
+              if (e.target.checked) {
+                setCheckedItems(checkedItems => {
+                  return { ...items };
+                });
+                setCheckAll(true);
+              }
+              else {
+                // Uncheck all.
+                setCheckedItems({});
+                setCheckAll(false);
+              }
+            }}>
+            </input>
+          </div>
         </div>
+        {showItems()}
       </div>
-      <table className="ItemViewTable">
-        <colgroup>
-          <col style={{ width: '10%' }}></col>
-          <col style={{ width: '80%' }}></col>
-          <col style={{ width: '10%' }}></col>
-        </colgroup>
-        <thead>
-          <tr className="ItemViewHead">
-            <td>Type</td>
-            <td>Name</td>
-            <td><input type="checkbox"></input></td>
-          </tr>
-        </thead>
-        <tbody>
-          {showItems}
-        </tbody>
-      </table>
-    </div>
+    </div >
   )
 }
 

@@ -9,8 +9,9 @@ const STATE = window.STATE;
 let startTime;
 
 function App() {
-  const [itemArray, setItemArray] = useState([]);
-  const [itemViewCurDir, setItemViewCurDir] = useState('.');
+  const [items, setItems] = useState({});
+  const [checkedItems, setCheckedItems] = useState({});
+  const [itemViewCurDir, setItemViewCurDir] = useState('');
   const [myIp, setMyIp] = useState('');
   const [myId, setMyId] = useState('your ID');
   const [sendIp, setSendIp] = useState('');
@@ -22,45 +23,25 @@ function App() {
   // Select local files.
   const openFile = async () => {
     let ret = await ipcRenderer.invoke('openFile');
-    let passArray = Array();
-    if (ret) {
-      for (let item of ret) {
-        let goodFlag = true;
-        for (let existingItem of itemArray) {
-          if (existingItem.name === item.name && existingItem.dir === item.name) {
-            goodFlag = false;
-            break;
-          }
-        }
-        if (goodFlag) {
-          passArray.push(item);
-        }
-      }
-      setItemArray(itemArray => [...itemArray, ...passArray]);
-    }
+    setItems(items => Object.assign({}, ret, items));
   };
 
   // Select local directories.
   const openDirectory = async () => {
     let ret = await ipcRenderer.invoke('openDirectory');
-    let passArray = Array();
-    if (ret) {
-      for (let item of ret) {
-        let goodFlag = true;
-        for (let existingItem of itemArray) {
-          if (existingItem.name === item.name && existingItem.dir === item.dir) {
-            goodFlag = false;
-            break;
-          }
-        }
-        if (goodFlag) {
-          passArray.push(item);
-        }
-      }
-      setItemArray(itemArray => [...itemArray, ...passArray]);
-    }
-  };
+    setItems(items => Object.assign({}, ret, items));
+  }
 
+  const deleteCheckedItems = () => {
+    setItems(items => {
+      let tmp = { ...items };
+      for (let itemName in checkedItems) {
+        delete tmp[itemName];
+      }
+      return tmp;
+    });
+    setCheckedItems({});
+  }
 
   const getNetworks = async () => {
     const ret = await ipcRenderer.invoke('get-networks');
@@ -69,7 +50,7 @@ function App() {
   }
 
   const send = () => {
-    ipcRenderer.invoke('send', { ip: sendIp, itemArray: itemArray });
+    ipcRenderer.invoke('send', { ip: sendIp, items: items });
     startTime = Date.now();
     sendStateHandler = setInterval(() => { getSendState() }, 500);
   }
@@ -143,6 +124,7 @@ function App() {
     return () => clearInterval(intervalHandler);
   }, []);
 
+
   return (
     <div className="App">
       <div className="Head">
@@ -172,8 +154,8 @@ function App() {
       </div>
       <div className="Main">
         <div className="Box1">
-          <ItemView itemArray={itemArray} curDir={itemViewCurDir} setCurDir={setItemViewCurDir} />
-          <button onClick={() => { window.alert('boo!') }} className="TextButton"> Delete Check</button>
+          <ItemView items={items} curDir={itemViewCurDir} setCurDir={setItemViewCurDir} checkedItems={checkedItems} setCheckedItems={setCheckedItems} />
+          <button onClick={() => { deleteCheckedItems(); }} className="TextButton"> Delete Check</button>
           <button onClick={openFile} className="TextButton">Open File</button>
           <button onClick={openDirectory} className="TextButton">Open Folder</button>
         </div>
