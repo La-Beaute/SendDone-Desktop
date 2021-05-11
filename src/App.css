@@ -55,7 +55,7 @@
 }
 
 .TextButton{
-  min-width: fit-content;
+  width: fit-content;
   background-color: orange;
   border: 1px solid gray;
   border-radius: 30px;

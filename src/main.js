@@ -259,5 +259,5 @@ ipcMain.handle('setDownloadDirectory', () => {
     title: "Set Download Directory",
     properties: ["openDirectory"]
   });
-  return ret;
+  return ret[0];
 })

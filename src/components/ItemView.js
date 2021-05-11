@@ -21,10 +21,7 @@ function ItemView({ items, curDir, setCurDir, checkedItems, setCheckedItems }) {
               📁 | {item.name}
             </div>
             <div>
-              <input type='checkbox' checked={() => {
-                console.log(checkAll);
-                return (item.name in checkedItems) || checkAll;
-              }}
+              <input type='checkbox' checked={(item.name in checkedItems) || checkAll}
                 onChange={(e) => { handleItemCheck(e.target.checked, item.name); }} />
             </div>
           </div>
@@ -83,7 +80,6 @@ function ItemView({ items, curDir, setCurDir, checkedItems, setCheckedItems }) {
   useEffect(() => {
     let numCheckedItems = Object.keys(checkedItems).length;
     let numItems = Object.keys(items).length;
-    console.log(numCheckedItems, numItems);
     if (numItems > 0 && numCheckedItems === numItems)
       setCheckAll(true);
     else

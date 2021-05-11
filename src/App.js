@@ -16,7 +16,7 @@ function App() {
   const [itemViewCurDir, setItemViewCurDir] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [myIp, setMyIp] = useState('');
-  const [myId, setMyId] = useState('your ID');
+  const [myId, setMyId] = useState(window.localStorage.getItem('myId'));
   const [sendIp, setSendIp] = useState('');
   const [networks, setNetworks] = useState([]);
   const [speed, setSpeed] = useState('');

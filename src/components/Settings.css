@@ -5,6 +5,60 @@
   transform: translate(-50%, -50%);
   width: 30vw;
   height: 40vh;
+  min-width: 500px;
+  min-height: 350px;
   background-color: white;
   border: 1px solid grey;
+}
+
+.Settings-Head{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 20%;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border-bottom: 1px solid grey;
+}
+.Settings-Body{
+  display: flex;
+  flex-direction: column;
+  height: 60%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 10px;
+}
+.Settings-Buttons{
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  height: 20%;
+  border-top: 1px solid grey;
+}
+
+.Settings-Item{
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 5px 0;
+}
+.Settings-Item:first-child{
+  margin-top: 0;
+}
+.Settings-Item:last-child{
+  margin-bottom: 0;
+}
+.Settings-Item-Key{
+  justify-self: flex-start;
+}
+.Settings-Item-Value{
+  justify-self: flex-start;
+  border: 1px solid grey;
+  border-radius: 5px;
+  padding: 5px 10px;
+  max-width: 90%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
