@@ -253,3 +253,11 @@ ipcMain.handle('rejectRecv', () => {
     receiver.acceptRecv(app.getPath('downloads'));
   }
 })
+
+ipcMain.handle('setDownloadDirectory', () => {
+  let ret = dialog.showOpenDialogSync(mainWindow, {
+    title: "Set Download Directory",
+    properties: ["openDirectory"]
+  });
+  return ret;
+})
