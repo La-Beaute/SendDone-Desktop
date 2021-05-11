@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ItemView from './components/ItemView';
+import Settings from './components/Settings';
+import Blind from './components/Blind';
 import './App.css';
 // Below lines are importing modules from window object.
 // Look at 'preload.js' for more understanding.
@@ -12,6 +14,7 @@ function App() {
   const [items, setItems] = useState({});
   const [checkedItems, setCheckedItems] = useState({});
   const [itemViewCurDir, setItemViewCurDir] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
   const [myIp, setMyIp] = useState('');
   const [myId, setMyId] = useState('your ID');
   const [sendIp, setSendIp] = useState('');
@@ -124,7 +127,6 @@ function App() {
     return () => clearInterval(intervalHandler);
   }, []);
 
-
   return (
     <div className="App">
       <div className="Head">
@@ -149,7 +151,7 @@ function App() {
             :
             <button onClick={openServerSocket} className="TextButton ServerStatClose">Open Server</button>
           }
-          <button className="TextButton">Settings</button>
+          <button onClick={() => { setShowSettings(true); }} className="TextButton">Settings</button>
         </div>
       </div>
       <div className="Main">
@@ -165,7 +167,13 @@ function App() {
           {speed}
         </div>
       </div>
-    </div>
+      {
+        showSettings && <Blind />
+      }
+      {
+        showSettings && <Settings setShowSettings={setShowSettings} />
+      }
+    </div >
   );
 };
 
