@@ -171,7 +171,7 @@ function App() {
         showSettings && <Blind />
       }
       {
-        showSettings && <Settings setShowSettings={setShowSettings} />
+        showSettings && <Settings setShowSettings={setShowSettings} myId={myId} setMyId={setMyId} />
       }
     </div >
   );
