@@ -3,6 +3,7 @@ import ItemView from './components/ItemView';
 import DeviceView from './components/DeviceView';
 import Settings from './components/Settings';
 import SendView from './components/SendView';
+import RecvView from './components/RecvView';
 import Blind from './components/Blind';
 import './App.css';
 // Below lines are importing modules from window object.
@@ -22,13 +23,13 @@ function App() {
   const [myId, setMyId] = useState(window.localStorage.getItem('myId'));
   const [sendIp, setSendIp] = useState('');
   const [networks, setNetworks] = useState([]);
-  const [speed, setSpeed] = useState('');
   const [serverSocketOpen, setServerSocketOpen] = useState(false);
   const [showBlind, setShowBlind] = useState(false);
   const [disableScan, setDisableScan] = useState(false);
   const [sending, setSending] = useState(false);
+  const [receiving, setReceiving] = useState(false);
   const [sendState, setSendState] = useState({});
-  let sendStateHandler = null;
+  const [recvState, setRecvState] = useState({});
 
   // Select local files.
   const openFile = async () => {
@@ -71,37 +72,18 @@ function App() {
   }
 
   const getSendState = async () => {
-    const ret = await ipcRenderer.invoke('getSendState');
-    console.log(ret);
-    if (ret.state === STATE.SEND_REQUEST || ret.state === STATE.SEND)
+    const state = await ipcRenderer.invoke('getSendState');
+    if (state.state === STATE.SEND_REQUEST || state.state === STATE.SEND)
       // Only set timeout when needed.
       setTimeout(getSendState, 500);
-    setSendState(() => ret);
+    setSendState(() => state);
   }
 
   const getRecvState = async () => {
-    const ret = await ipcRenderer.invoke('getRecvState');
-    if (ret.state === STATE.RECV_WAIT) {
-      let input = window.confirm('Want to receive?');
-      if (input) {
-        ipcRenderer.invoke('acceptRecv', window.localStorage.getItem('downloadDirectory'));
-      }
-      else {
-        ipcRenderer.invoke('rejectRecv');
-      }
-    }
-    else if (ret.state === STATE.RECV) {
-      setSpeed(ret.speed);
-    }
-    else if (ret.state === STATE.RECV_DONE) {
-      setSpeed('Done!');
-    }
-    else if (ret.state === STATE.ERR_FS) {
-      // TODO Handle error.
-    }
-    else if (ret.state === STATE.ERR_NET) {
-      // TODO Handle error.
-    }
+    const state = await ipcRenderer.invoke('getRecvState');
+    if (state.state === STATE.RECV_WAIT)
+      setReceiving(true);
+    setRecvState(() => state);
   }
 
   const listNetworks = networks.map((network) => {
@@ -205,6 +187,12 @@ function App() {
       </div>
       {
         showBlind && <Blind />
+      }
+      {
+        receiving && <RecvView
+          setReceiving={setReceiving}
+          setShowBlind={setShowBlind}
+          state={recvState} />
       }
       {
         sending && <SendView

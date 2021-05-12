@@ -1,0 +1,33 @@
+.RecvView{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30vw;
+  height: 40vh;
+  min-width: 500px;
+  min-height: 350px;
+  background-color: white;
+  border: 1px solid grey;
+  border-radius: 10px;
+}
+
+.RecvView-Body{
+  display: flex;
+  width: 100%;
+  height: 80%;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid grey;
+}
+
+
+.RecvView-Buttons{
+  display: flex;
+  width: 100%;
+  height: 20%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}

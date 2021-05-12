@@ -209,34 +209,23 @@ ipcMain.handle('endSend', () => {
 })
 
 ipcMain.handle('getRecvState', () => {
-  if (receiver) {
-    const state = receiver.getState();
-    if (state === network.STATE.RECV_WAIT) {
-      return { state: state, itemArray: receiver.getitemArray() };
-    }
-    if (state === network.STATE.RECV) {
-      const speed = sender.getSpeed();
-      return { state: state, speed: speed };
-    }
-    if (state === network.STATE.RECV_DONE) {
-      dialog.showMessageBox(mainWindow, { message: 'Receive Complete~!' });
-      receiver.setStateIdle();
-      return { state: state };
-    }
-    return { state: state };
-  }
-  return null;
+  const state = receiver.getState();
+  return state;
+})
+
+ipcMain.handle('endRecv', () => {
+  receiver.end();
 })
 
 ipcMain.handle('acceptRecv', (downloadDirectory) => {
   if (receiver) {
-    receiver.acceptRecv(downloadDirectory);
+    receiver.acceptRecv(downloadDirectory ? downloadDirectory : app.getPath('downloads'));
   }
 })
 
 ipcMain.handle('rejectRecv', () => {
   if (receiver) {
-    receiver.acceptRecv(app.getPath('downloads'));
+    receiver.rejectRecv();
   }
 })
 

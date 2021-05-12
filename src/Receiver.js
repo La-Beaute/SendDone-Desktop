@@ -22,6 +22,11 @@ class Receiver {
      */
     this._recvSocket = null;
     /**
+     * Send Request header.
+     * @type {{app: string, version:string, class:string, id:string, items:{}}}
+     */
+    this._sendRequestHeader = null;
+    /**
      * Tells whether has parsed header sent from the receiver or not.
      * @type {boolean}
      */
@@ -50,7 +55,7 @@ class Receiver {
      */
     this._itemArray = null;
     /**
-     * Full name of the current item including directory.
+     * Name of the current item excluding download path.
      * @type {String}
      */
     this._itemName = null;
@@ -182,7 +187,8 @@ class Receiver {
           case STATE.IDLE:
             switch (recvHeader.class) {
               case 'send-request':
-                if (!this._validateSendRequestHeader(recvHeader)) {
+                this._sendRequestHeader = recvHeader;
+                if (!this._validateSendRequestHeader(this._sendRequestHeader)) {
                   console.error('Header error. Not valid.');
                   socket.end();
                 }
@@ -419,6 +425,22 @@ class Receiver {
    * Return the current state
    */
   getState() {
+    if (this._state === STATE.RECV) {
+      return {
+        state: this._state,
+        speed: this.getSpeed(),
+        progress: this.getItemProgress(),
+        totalProgress: this.getTotalProgress(),
+        name: this._itemName
+      };
+    }
+    if (this._state === STATE.RECV_WAIT) {
+      return {
+        state: this._state,
+        id: this._sendRequestHeader.id,
+        items: this._sendRequestHeader.items
+      }
+    }
     return this._state;
   }
 
@@ -559,6 +581,8 @@ class Receiver {
     if (header.app !== 'SendDone')
       return false;
     if (header.version !== VERSION)
+      return false;
+    if (!header.id)
       return false;
     if (!header.items)
       return false;

@@ -1,21 +1,48 @@
 import React from 'react';
-import './SendView.css';
+import './RecvView.css';
 const STATE = window.STATE;
 
 /**
  * state has keys:
  * state, speed, progress, totalProgress, name
+ * or 
+ * state, id, items
  */
-function SendView({ setShowBlind, setSending, state }) {
+function RecvView({ setShowBlind, setReceiving, state }) {
 
-  const endSend = () => {
-    window.ipcRenderer.invoke('endSend');
-    setSending(false);
-    setShowBlind(false);
+  const endRecv = () => {
+    window.ipcRenderer.invoke('endRecv');
     window.ipcRenderer.invoke('setReceiverIdle');
+    setReceiving(false);
+    setShowBlind(false);
   }
 
-  if (state.state === STATE.SEND)
+  const acceptRecv = () => {
+    window.ipcRenderer.invoke('acceptRecv', window.localStorage.getItem('downloadDirectory'));
+  }
+
+  const rejectRecv = () => {
+    window.ipcRenderer.invoke('rejectRecv');
+  }
+
+  if (state.state === STATE.RECV_WAIT)
+    return (
+      <div className="SendView">
+        <div className="SendView-Body">
+          <div>
+            {state.id} wants to send you files.
+          </div>
+          <div>
+            Do you want to accept?
+          </div>
+        </div>
+        <div className="SendView-Buttons">
+          <button onClick={rejectRecv} className="TextButton">Reject</button>
+          <button onClick={acceptRecv} className="TextButton">Accept</button>
+        </div>
+      </div>
+    )
+  if (state.state === STATE.RECV)
     return (
       <div className="SendView">
         <div className="SendView-Body">
@@ -33,29 +60,18 @@ function SendView({ setShowBlind, setSending, state }) {
           </div>
         </div>
         <div className="SendView-Buttons">
-          <button onClick={endSend} className="TextButton">Cancel</button>
-        </div>
-      </div>
-    )
-  if (state.state === STATE.SEND_REJECT)
-    return (
-      <div className="SendView">
-        <div className="SendView-Body">
-          Receiver has rejected your request.
-        </div>
-        <div className="SendView-Buttons">
-          <button onClick={endSend} className="TextButton">OK</button>
+          <button onClick={endRecv} className="TextButton">Cancel</button>
         </div>
       </div>
     );
-  if (state.state === STATE.SEND_DONE)
+  if (state.state === STATE.RECV_DONE)
     return (
       <div className="SendView">
         <div className="SendView-Body">
-          Send Done!
+          Receive Done!
         </div>
         <div className="SendView-Buttons">
-          <button onClick={endSend} className="TextButton">OK</button>
+          <button onClick={endRecv} className="TextButton">OK</button>
         </div>
       </div>
     );
@@ -67,7 +83,7 @@ function SendView({ setShowBlind, setSending, state }) {
           Network Error. Cannot send.
         </div>
         <div className="SendView-Buttons">
-          <button onClick={endSend} className="TextButton">OK</button>
+          <button onClick={endRecv} className="TextButton">OK</button>
         </div>
       </div>
     );
@@ -78,31 +94,31 @@ function SendView({ setShowBlind, setSending, state }) {
           File System Error. Cannot send.
         </div>
         <div className="SendView-Buttons">
-          <button onClick={endSend} className="TextButton">OK</button>
+          <button onClick={endRecv} className="TextButton">OK</button>
         </div>
       </div>
     );
-  if (state.state === STATE.RECEIVER_END)
+  if (state.state === STATE.SENDER_END)
     return (
       <div className="SendView">
         <div className="SendView-Body">
-          Receiver has terminated receiving.
+          Sender has terminated receiving.
         </div>
         <div className="SendView-Buttons">
-          <button onClick={endSend} className="TextButton">OK</button>
+          <button onClick={endRecv} className="TextButton">OK</button>
         </div>
       </div>
     );
   return (
     <div className="SendView">
       <div className="SendView-Body">
-        Waiting...
+        W T H ?
         </div>
       <div className="SendView-Buttons">
-        <button onClick={endSend} className="TextButton">Cancel</button>
+        <button onClick={endRecv} className="TextButton">Cancel</button>
       </div>
     </div>
   );
 }
 
-export default SendView;
+export default RecvView;
