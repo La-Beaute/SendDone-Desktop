@@ -11,6 +11,10 @@ class Receiver {
    */
   constructor(ip, myId) {
     this._state = STATE.IDLE;
+    if (!ip) {
+      this._state = STATE.ERR_NET;
+      return;
+    }
     if (!myId) {
       this._state = STATE.ERR_FS;
       return;
@@ -366,6 +370,16 @@ class Receiver {
     return this._serverSocket && this._serverSocket.listening;
   }
 
+  /**
+   * Change this my id.
+   * @param {string} newId 
+   */
+  changeMyId(newId) {
+    if (!newId)
+      return false;
+    this._myId = newId;
+    return true;
+  }
   /**
    * @returns {Array<{name:String, type:String, size:number}>}
    */
