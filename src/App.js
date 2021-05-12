@@ -56,8 +56,11 @@ function App() {
 
   const getNetworks = async () => {
     const ret = await ipcRenderer.invoke('get-networks');
-    if (ret)
+    if (ret) {
+      setMyIp(ret[0].ip);
+      setNetmask(ret[0].netmask);
       setNetworks([...ret]);
+    }
   }
 
   const send = () => {
