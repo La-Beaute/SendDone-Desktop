@@ -1,14 +1,17 @@
 .ItemView{
   width: 100%;
-  height: 50vh;
+  height: 85%;
   align-items: center;
-  margin: 10px auto;
+  margin: 0 auto;
   padding: 10px;
+  overflow:hidden;
 }
 
 .ItemViewTable{
   width: 100%;
   height: 90%;
+  border-radius: 10px 0 0 10px;
+  overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid grey;
 }
@@ -31,8 +34,7 @@
   top: 0;
 }
 .ItemName{
-  overflow-x: auto;
-}
-.ItemName::-webkit-scrollbar{
-  display: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }

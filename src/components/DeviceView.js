@@ -1,14 +1,22 @@
 import React, { useState } from 'react';
+import './DeviceView.css';
 
-function DeviceView({ itemArray }) {
-  const showItems = itemArray.map((item) => {
-    return <div className="ItemElement" key={item.path}>{item.path + ' | ' + item.name}</div>;
+function DeviceView({ deviceArray }) {
+  const showItems = deviceArray.map((device) => {
+    return (
+      <div className="DeviceElement" key={device.ip}>
+        <image className="OsImage"></image>
+        {device.path + ' | ' + device.name}
+      </div>
+    );
   });
 
 
   return (
     <div className="DeviceView">
-      {showItems}
+      <div className="DeviceViewTable">
+
+      </div>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ItemView from './components/ItemView';
+import DeviceView from './components/DeviceView';
 import Settings from './components/Settings';
 import Blind from './components/Blind';
 import './App.css';
@@ -14,6 +15,7 @@ function App() {
   const [items, setItems] = useState({});
   const [checkedItems, setCheckedItems] = useState({});
   const [itemViewCurDir, setItemViewCurDir] = useState('');
+  const [deviceArray, setdeviceArray] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [myIp, setMyIp] = useState('');
   const [myId, setMyId] = useState(window.localStorage.getItem('myId'));
@@ -129,42 +131,50 @@ function App() {
 
   return (
     <div className="App">
-      <div className="Head">
-        <div className="Head-Header">
-          SendDone
+      <div className="GridItem">
+        <div className="Head">
+          <div className="Head-Header">
+            SendDone
           <br />
           Hi, {myId}!
         </div>
-        <div className="Head-Buttons">
-          <select onChange={(e) => {
-            setMyIp(e.target.value);
-            if (serverSocketOpen) {
-              // Close and re open server socket.
-              closeServerSocket().then(openServerSocket);
+          <div className="Head-Buttons">
+            <select onChange={(e) => {
+              setMyIp(e.target.value);
+              if (serverSocketOpen) {
+                // Close and re open server socket.
+                closeServerSocket().then(openServerSocket);
+              }
+            }}>
+              {listNetworks}
+            </select>
+            {serverSocketOpen
+              ?
+              <button onClick={closeServerSocket} className="TextButton ServerStatOpen">Close Server</button>
+              :
+              <button onClick={openServerSocket} className="TextButton ServerStatClose">Open Server</button>
             }
-          }}>
-            {listNetworks}
-          </select>
-          {serverSocketOpen
-            ?
-            <button onClick={closeServerSocket} className="TextButton ServerStatOpen">Close Server</button>
-            :
-            <button onClick={openServerSocket} className="TextButton ServerStatClose">Open Server</button>
-          }
-          <button onClick={() => { setShowSettings(true); }} className="TextButton">Settings</button>
+            <button onClick={() => { setShowSettings(true); }} className="TextButton">Settings</button>
+          </div>
         </div>
       </div>
-      <div className="Main">
-        <div className="Box1">
-          <ItemView items={items} /* curDir={itemViewCurDir} setCurDir={setItemViewCurDir} */ checkedItems={checkedItems} setCheckedItems={setCheckedItems} />
-          <button onClick={() => { deleteCheckedItems(); }} className="TextButton"> Delete Check</button>
-          <button onClick={openFile} className="TextButton">Open File</button>
-          <button onClick={openDirectory} className="TextButton">Open Folder</button>
-        </div>
-        <div className="Box2">
-          <input type="text" onChange={(event) => { setSendIp(event.target.value); }}></input>
-          <button onClick={send} className="TextButton">Send</button>
-          {speed}
+      <div className="GridItem">
+        <div className="Body">
+          <div className="GridItem">
+            <div className="Box">
+              <ItemView items={items} /* curDir={itemViewCurDir} setCurDir={setItemViewCurDir} */ checkedItems={checkedItems} setCheckedItems={setCheckedItems} />
+              <button onClick={() => { deleteCheckedItems(); }} className="TextButton"> Delete Check</button>
+              <button onClick={openFile} className="TextButton">Open File</button>
+              <button onClick={openDirectory} className="TextButton">Open Folder</button>
+            </div>
+          </div>
+          <div className="GridItem">
+            <div className="Box">
+              <DeviceView deviceArray={deviceArray} />
+              <button className="TextButton">Scan</button>
+              <button onClick={send} className="TextButton">Send</button>
+            </div>
+          </div>
         </div>
       </div>
       {

@@ -1,0 +1,19 @@
+.DeviceView{
+  width: 100%;
+  height: 85%;
+  padding: 10px;
+}
+
+.DeviceViewTable{
+  width: 100%;
+  height: 90%;
+  border-radius: 10px 0 0 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid grey;
+}
+
+.OsImage{
+  height: 90%;
+  width: auto;
+}
