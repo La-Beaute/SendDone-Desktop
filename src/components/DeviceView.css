@@ -17,3 +17,26 @@
   height: 90%;
   width: auto;
 }
+
+.DeviceElement{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  border-bottom: 1px solid grey;
+  transition: 0.2s;
+}
+.DeviceElement:hover{
+  background-color: #CCCCCC;
+}
+.DeviceSelected{
+  background-color: #80336633;
+}
+.DeviceElement-Box{
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+.DeviceElement-ID{
+  font-size: 1.5rem;
+  font-weight: bold;
+}

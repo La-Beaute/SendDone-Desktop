@@ -14,15 +14,17 @@ let startTime;
 function App() {
   const [items, setItems] = useState({});
   const [checkedItems, setCheckedItems] = useState({});
-  const [itemViewCurDir, setItemViewCurDir] = useState('');
+  // const [itemViewCurDir, setItemViewCurDir] = useState('');
   const [deviceArray, setdeviceArray] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [myIp, setMyIp] = useState('');
+  const [netmask, setNetmask] = useState('');
   const [myId, setMyId] = useState(window.localStorage.getItem('myId'));
   const [sendIp, setSendIp] = useState('');
   const [networks, setNetworks] = useState([]);
   const [speed, setSpeed] = useState('');
   const [serverSocketOpen, setServerSocketOpen] = useState(false);
+  const [showBlind, setShowBlind] = useState(false);
   let sendStateHandler = null;
 
   // Select local files.
@@ -55,7 +57,11 @@ function App() {
   }
 
   const send = () => {
-    ipcRenderer.invoke('send', { ip: sendIp, items: items });
+    if (!sendIp || !myId) {
+      showBlind(true);
+
+    }
+    ipcRenderer.invoke('send', sendIp, items, myId);
     startTime = Date.now();
     sendStateHandler = setInterval(() => { getSendState() }, 500);
   }
@@ -101,8 +107,9 @@ function App() {
   }
 
   const listNetworks = networks.map((network) => {
-    return <option value={network.ip} key={network.ip}>{network.name} | {network.ip}</option>;
+    return <option value={network.ip + '/' + network.netmask} key={network.ip}>{network.name} | {network.ip}</option>;
   });
+
 
   const openServerSocket = async () => {
     ipcRenderer.invoke('openServerSocket', { ip: myIp });
@@ -111,6 +118,12 @@ function App() {
   const closeServerSocket = async () => {
     let ret = await ipcRenderer.invoke('closeServerSocket');
     return ret;
+  }
+
+  const scan = () => {
+    setSendIp('');
+    setdeviceArray([]);
+    ipcRenderer.invoke('scan', myIp, netmask, myId);
   }
 
   // useEffect is something like componentDidMount in React class component.
@@ -123,11 +136,20 @@ function App() {
         // Get receiver state only when the server socket is open.
         getRecvState();
     }
+    ipcRenderer.on('scannedDevice', (event, deviceIp, deviceVersion, deviceId, deviceOs) => {
+      setdeviceArray(() => [...deviceArray, { ip: deviceIp, version: deviceVersion, id: deviceId, os: deviceOs }]);
+    });
+
+    if (myId)
+      ipcRenderer.invoke('changeMyId', myId);
     getNetworks();
     intervalFun();
     const intervalHandler = setInterval(() => { intervalFun(); }, 1000);
-    return () => clearInterval(intervalHandler);
-  }, []);
+    return () => {
+      ipcRenderer.removeAllListeners();
+      clearInterval(intervalHandler);
+    };
+  }, [myId, deviceArray]);
 
   return (
     <div className="App">
@@ -140,7 +162,10 @@ function App() {
         </div>
           <div className="Head-Buttons">
             <select onChange={(e) => {
-              setMyIp(e.target.value);
+              const [ip, netmask] = e.target.value.split('/');
+              setMyIp(ip);
+              setNetmask(netmask);
+              console.log(ip, netmask);
               if (serverSocketOpen) {
                 // Close and re open server socket.
                 closeServerSocket().then(openServerSocket);
@@ -154,7 +179,7 @@ function App() {
               :
               <button onClick={openServerSocket} className="TextButton ServerStatClose">Open Server</button>
             }
-            <button onClick={() => { setShowSettings(true); }} className="TextButton">Settings</button>
+            <button onClick={() => { setShowBlind(true); setShowSettings(true); }} className="TextButton">Settings</button>
           </div>
         </div>
       </div>
@@ -170,18 +195,24 @@ function App() {
           </div>
           <div className="GridItem">
             <div className="Box">
-              <DeviceView deviceArray={deviceArray} />
-              <button className="TextButton">Scan</button>
+              <DeviceView deviceArray={deviceArray}
+                sendIp={sendIp}
+                setSendIp={setSendIp} />
+              <button onClick={scan} className="TextButton">Scan</button>
               <button onClick={send} className="TextButton">Send</button>
             </div>
           </div>
         </div>
       </div>
       {
-        showSettings && <Blind />
+        showBlind && <Blind />
       }
       {
-        showSettings && <Settings setShowSettings={setShowSettings} myId={myId} setMyId={setMyId} />
+        showSettings && <Settings
+          setShowSettings={setShowSettings}
+          setShowBlind={setShowBlind}
+          myId={myId}
+          setMyId={setMyId} />
       }
     </div >
   );
