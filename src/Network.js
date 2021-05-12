@@ -84,7 +84,7 @@ function scan(ip, netmask, myId, callback) {
   let ipAsNumber = _IpStringToNumber(ip);
   while (broadcastIp > currentIp) {
     let thisIp = _IpNumberToString(currentIp);
-    if (ipAsNumber !== currentIp) {
+    if (thisIp !== ip) {
       const socket = net.createConnection(PORT, thisIp);
       let recvBuf = Buffer.from([]);
       socket.setTimeout(2000, () => {
