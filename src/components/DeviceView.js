@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './DeviceView.css';
 
 /**
@@ -8,8 +8,12 @@ import './DeviceView.css';
 function DeviceView({ deviceArray, sendIp, setSendIp }) {
   const showDevices = deviceArray.map((device) => {
     return (
-      <div className={"DeviceElement" + (sendIp === device.ip ? " DeviceSelected" : "")} key={device.ip} onClick={(e) => { setSendIp(device.ip); console.log(e.currentTarget.className); }}>
-        <img className="Osimg"></img>
+      <div className={"DeviceElement" + (sendIp === device.ip ? " DeviceSelected" : "")}
+        key={device.ip}
+        onClick={(e) => {
+          setSendIp(device.ip);
+        }}>
+        <img className="Osimg" alt={device.os}></img>
         <div className="DeviceElement-Box">
           <div className="DeviceElement-ID">
             {device.id}

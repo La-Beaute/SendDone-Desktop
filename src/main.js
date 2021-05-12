@@ -23,7 +23,7 @@ var receiver = new Receiver();
 function createWindow() {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    title: 'SendDone',
+    title: 'SendDone Desktop',
     minWidth: 800,
     minHeight: 600,
     width: 800,
@@ -179,38 +179,32 @@ ipcMain.handle('set-id', (event, myId) => {
 
 ipcMain.handle('send', (event, ip, items, myId) => {
   // set receiver busy.
-  if (receiver) {
-    receiver.setStateBusy();
-  }
+  receiver.setStateBusy();
   if (!sender) {
     sender = new Sender(myId);
     sender.send(items, ip);
   }
 })
 
-ipcMain.handle('get-send-state', () => {
-  if (sender) {
-    const state = sender.getState();
-    if (state === network.STATE.SEND_REQUEST) {
-      return { state: state };
-    }
-    if (state === network.STATE.SEND) {
-      const speed = sender.getSpeed();
-      return { state: state, speed: speed };
-    }
-    if (state === network.STATE.SEND_DONE) {
-      dialog.showMessageBox(mainWindow, { message: 'Send Complete~!' });
-      sender = null;
-      return { state: state };
-    }
-    return { state: state };
-  }
-  return null;
+ipcMain.handle('setReceiverBusy', () => {
+  receiver.setStateBusy();
 })
 
-ipcMain.handle('finish-send', () => {
-  if (receiver) {
-    receiver.setStateIdle();
+ipcMain.handle('setReceiverIdle', () => {
+  receiver.setStateIdle();
+})
+
+ipcMain.handle('getSendState', () => {
+  if (sender) {
+    const state = sender.getState();
+    return state;
+  }
+})
+
+ipcMain.handle('endSend', () => {
+  if (sender) {
+    sender.end();
+    sender = null;
   }
 })
 
@@ -234,9 +228,9 @@ ipcMain.handle('getRecvState', () => {
   return null;
 })
 
-ipcMain.handle('acceptRecv', () => {
+ipcMain.handle('acceptRecv', (downloadDirectory) => {
   if (receiver) {
-    receiver.acceptRecv(app.getPath('downloads'));
+    receiver.acceptRecv(downloadDirectory);
   }
 })
 

@@ -36,7 +36,7 @@ class Sender {
     this._socket = null;
     /**
      * Normalized item array.
-     * @type {Array.<path:string, dir:string, name:string, type:string, size:number>}
+     * @type {Array.<{path:string, dir:string, name:string, type:string, size:number}>}
      */
     this._itemArray = null;
     /**
@@ -261,7 +261,7 @@ class Sender {
    * @returns {boolean}
    */
   async end() {
-    if (this._state === STATE.SEND || this._state === STATE.SENDER_STOP || this._state === STATE.RECEIVER_STOP) {
+    if (this._state === STATE.SEND || this._state === STATE.SEND_REQUEST || this._state === STATE.SENDER_STOP || this._state === STATE.RECEIVER_STOP) {
       if (this._itemHandle) {
         await this._itemHandle.close();
       }
@@ -330,7 +330,20 @@ class Sender {
    * Return the current state
    */
   getState() {
-    return this._state;
+    if (this._state === STATE.SEND_REQUEST) {
+      return { state: this._state };
+    }
+    if (this._state === STATE.SEND) {
+      return {
+        state: this._state,
+        speed: this.getSpeed(),
+        progress: this.getItemProgress(),
+        totalProgress: this.getTotalProgress(),
+        name: this._itemArray[this._index].name
+      };
+    }
+    return { state: this._state };
+
   }
 
   async _send() {

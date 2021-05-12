@@ -209,6 +209,10 @@ class Receiver {
             break;
           case STATE.RECV_WAIT:
             switch (recvHeader.class) {
+              case 'end':
+                this._state = STATE.SENDER_END;
+                socket.end();
+                return;
               default:
                 // What the hell?
                 socket.end();
@@ -424,7 +428,8 @@ class Receiver {
    * user has been acknowledged about the status and okay to do another job.
    */
   setStateIdle() {
-    this._state = STATE.IDLE;
+    if (this._state === STATE.RECV_BUSY)
+      this._state = STATE.IDLE;
   }
 
   /**
@@ -433,7 +438,8 @@ class Receiver {
    * to prevent receiving activated while sending.
    */
   setStateBusy() {
-    this._state = STATE.RECV_BUSY;
+    if (this._state === STATE.IDLE)
+      this._state = STATE.RECV_BUSY;
   }
 
   /**

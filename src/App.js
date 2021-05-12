@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ItemView from './components/ItemView';
 import DeviceView from './components/DeviceView';
 import Settings from './components/Settings';
+import SendView from './components/SendView';
 import Blind from './components/Blind';
 import './App.css';
 // Below lines are importing modules from window object.
@@ -25,6 +26,8 @@ function App() {
   const [serverSocketOpen, setServerSocketOpen] = useState(false);
   const [showBlind, setShowBlind] = useState(false);
   const [disableScan, setDisableScan] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendState, setSendState] = useState({});
   let sendStateHandler = null;
 
   // Select local files.
@@ -58,26 +61,22 @@ function App() {
 
   const send = () => {
     if (!myId || !sendIp) {
-      setShowBlind(true);
       window.alert(!myId ? 'Cannot send without ID!' : 'Select device first!');
-      setShowBlind(false);
       return;
     }
     ipcRenderer.invoke('send', sendIp, items, myId);
-    sendStateHandler = setInterval(() => { getSendState() }, 500);
+    setShowBlind(true);
+    setSending(true);
+    getSendState();
   }
 
   const getSendState = async () => {
-    const ret = await ipcRenderer.invoke('get-send-state');
-    if (ret.state === STATE.SEND_WAIT) {
-      setSpeed('Waiting...');
-    }
-    else if (ret.state === STATE.SEND) {
-      setSpeed(ret.speed);
-    }
-    else if (ret.state === STATE.SEND_DONE) {
-      clearInterval(sendStateHandler);
-    }
+    const ret = await ipcRenderer.invoke('getSendState');
+    console.log(ret);
+    if (ret.state === STATE.SEND_REQUEST || ret.state === STATE.SEND)
+      // Only set timeout when needed.
+      setTimeout(getSendState, 500);
+    setSendState(() => ret);
   }
 
   const getRecvState = async () => {
@@ -85,7 +84,7 @@ function App() {
     if (ret.state === STATE.RECV_WAIT) {
       let input = window.confirm('Want to receive?');
       if (input) {
-        ipcRenderer.invoke('acceptRecv');
+        ipcRenderer.invoke('acceptRecv', window.localStorage.getItem('downloadDirectory'));
       }
       else {
         ipcRenderer.invoke('rejectRecv');
@@ -188,7 +187,7 @@ function App() {
           <div className="GridItem">
             <div className="Box">
               <ItemView items={items} /* curDir={itemViewCurDir} setCurDir={setItemViewCurDir} */ checkedItems={checkedItems} setCheckedItems={setCheckedItems} />
-              <button onClick={() => { deleteCheckedItems(); }} className="TextButton"> Delete Check</button>
+              <button onClick={deleteCheckedItems} className="TextButton"> Delete Check</button>
               <button onClick={openFile} className="TextButton">Open File</button>
               <button onClick={openDirectory} className="TextButton">Open Folder</button>
             </div>
@@ -206,6 +205,12 @@ function App() {
       </div>
       {
         showBlind && <Blind />
+      }
+      {
+        sending && <SendView
+          setSending={setSending}
+          setShowBlind={setShowBlind}
+          state={sendState} />
       }
       {
         showSettings && <Settings
