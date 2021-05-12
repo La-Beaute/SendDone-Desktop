@@ -85,7 +85,6 @@ function scan(ip, netmask, myId, callback) {
     let thisIp = _IpNumberToString(currentIp);
     // if (ipAsNumber !== currentIp) {
     if (true) {
-      console.log('trying ', thisIp);
       const socket = net.createConnection(PORT, thisIp);
       let recvBuf = Buffer.from([]);
       socket.setTimeout(2000, () => {

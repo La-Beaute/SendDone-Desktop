@@ -9,7 +9,6 @@ import './App.css';
 // const networking = window.networking;
 const ipcRenderer = window.ipcRenderer;
 const STATE = window.STATE;
-let startTime;
 
 function App() {
   const [items, setItems] = useState({});
@@ -25,6 +24,7 @@ function App() {
   const [speed, setSpeed] = useState('');
   const [serverSocketOpen, setServerSocketOpen] = useState(false);
   const [showBlind, setShowBlind] = useState(false);
+  const [disableScan, setDisableScan] = useState(false);
   let sendStateHandler = null;
 
   // Select local files.
@@ -57,12 +57,13 @@ function App() {
   }
 
   const send = () => {
-    if (!sendIp || !myId) {
-      showBlind(true);
-
+    if (!myId || !sendIp) {
+      setShowBlind(true);
+      window.alert(!myId ? 'Cannot send without ID!' : 'Select device first!');
+      setShowBlind(false);
+      return;
     }
     ipcRenderer.invoke('send', sendIp, items, myId);
-    startTime = Date.now();
     sendStateHandler = setInterval(() => { getSendState() }, 500);
   }
 
@@ -75,8 +76,6 @@ function App() {
       setSpeed(ret.speed);
     }
     else if (ret.state === STATE.SEND_DONE) {
-      console.log(ret.state);
-      setSpeed((Date.now() - startTime) + 'ms');
       clearInterval(sendStateHandler);
     }
   }
@@ -121,9 +120,11 @@ function App() {
   }
 
   const scan = () => {
+    setDisableScan(true);
     setSendIp('');
     setdeviceArray([]);
     ipcRenderer.invoke('scan', myIp, netmask, myId);
+    setTimeout(() => { setDisableScan(false); }, 3000);
   }
 
   // useEffect is something like componentDidMount in React class component.
@@ -165,7 +166,6 @@ function App() {
               const [ip, netmask] = e.target.value.split('/');
               setMyIp(ip);
               setNetmask(netmask);
-              console.log(ip, netmask);
               if (serverSocketOpen) {
                 // Close and re open server socket.
                 closeServerSocket().then(openServerSocket);
@@ -198,7 +198,7 @@ function App() {
               <DeviceView deviceArray={deviceArray}
                 sendIp={sendIp}
                 setSendIp={setSendIp} />
-              <button onClick={scan} className="TextButton">Scan</button>
+              <button onClick={scan} disabled={disableScan} className="TextButton">Scan</button>
               <button onClick={send} className="TextButton">Send</button>
             </div>
           </div>

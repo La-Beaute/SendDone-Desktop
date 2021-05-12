@@ -247,7 +247,6 @@ ipcMain.handle('rejectRecv', () => {
 })
 
 ipcMain.handle('scan', (event, myIp, netmask, myId) => {
-  console.log(myIp, netmask, myId);
   network.scan(myIp, netmask, myId, (deviceIp, deviceVersion, deviceId, deviceOs) => {
     mainWindow.webContents.send('scannedDevice', deviceIp, deviceVersion, deviceId, deviceOs);
   });
