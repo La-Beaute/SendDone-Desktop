@@ -11,6 +11,7 @@ const tmp2 = path.join(__dirname, 'tmp2');
 
 const sender = new Sender('sender');
 const receiver = new Receiver(receiverIp, 'receiver');
+receiver.openServerSocket(receiverIp);
 
 async function delTmpDir() {
   try {
@@ -34,7 +35,7 @@ async function mkTmpDir() {
 }
 
 const acceptReceiving = (done) => {
-  let state = receiver.getState();
+  let state = receiver.getState().state;
   if (state === network.STATE.RECV_WAIT) {
     console.log('Accepting receiving.');
     receiver.acceptRecv(tmp2);
@@ -49,7 +50,7 @@ const acceptReceiving = (done) => {
 };
 
 async function resetReceiver(done) {
-  let state = receiver.getState();
+  let state = receiver.getState().state;
   if (state === network.STATE.RECV_DONE) {
     receiver.setStateIdle();
     done();
@@ -63,7 +64,7 @@ async function resetReceiver(done) {
 }
 
 const acceptReceivingStop = (done) => {
-  let state = receiver.getState();
+  let state = receiver.getState().state;
   if (state === network.STATE.RECV_WAIT) {
     console.log('Accepting receiving.');
     receiver.acceptRecv(tmp2);
@@ -102,7 +103,7 @@ const acceptReceivingStop = (done) => {
 };
 
 async function resetReceiverStop(done) {
-  let state = receiver.getState();
+  let state = receiver.getState().state;
   if (state === network.STATE.RECV_DONE) {
     receiver.setStateIdle();
     done();

@@ -22,6 +22,11 @@ class Receiver {
      */
     this._recvSocket = null;
     /**
+     * Send Request header.
+     * @type {{app: string, version:string, class:string, id:string, itemArray:Array.<>}}
+     */
+    this._sendRequestHeader = null;
+    /**
      * Tells whether has parsed header sent from the receiver or not.
      * @type {boolean}
      */
@@ -50,7 +55,7 @@ class Receiver {
      */
     this._itemArray = null;
     /**
-     * Full name of the current item including directory.
+     * Name of the current item excluding download path.
      * @type {String}
      */
     this._itemName = null;
@@ -182,7 +187,8 @@ class Receiver {
           case STATE.IDLE:
             switch (recvHeader.class) {
               case 'send-request':
-                if (!this._validateSendRequestHeader(recvHeader)) {
+                this._sendRequestHeader = recvHeader;
+                if (!this._validateSendRequestHeader(this._sendRequestHeader)) {
                   console.error('Header error. Not valid.');
                   socket.end();
                 }
@@ -209,6 +215,10 @@ class Receiver {
             break;
           case STATE.RECV_WAIT:
             switch (recvHeader.class) {
+              case 'end':
+                this._state = STATE.SENDER_END;
+                socket.end();
+                return;
               default:
                 // What the hell?
                 socket.end();
@@ -415,7 +425,23 @@ class Receiver {
    * Return the current state
    */
   getState() {
-    return this._state;
+    if (this._state === STATE.RECV) {
+      return {
+        state: this._state,
+        speed: this.getSpeed(),
+        progress: this.getItemProgress(),
+        totalProgress: this.getTotalProgress(),
+        name: this._itemName
+      };
+    }
+    if (this._state === STATE.RECV_WAIT) {
+      return {
+        state: this._state,
+        id: this._sendRequestHeader.id,
+        itemArray: this._sendRequestHeader.itemArray
+      }
+    }
+    return { state: this._state };
   }
 
   /**
@@ -424,7 +450,8 @@ class Receiver {
    * user has been acknowledged about the status and okay to do another job.
    */
   setStateIdle() {
-    this._state = STATE.IDLE;
+    if (this._state === STATE.RECV_BUSY || this._state === STATE.RECV_DONE)
+      this._state = STATE.IDLE;
   }
 
   /**
@@ -433,7 +460,8 @@ class Receiver {
    * to prevent receiving activated while sending.
    */
   setStateBusy() {
-    this._state = STATE.RECV_BUSY;
+    if (this._state === STATE.IDLE)
+      this._state = STATE.RECV_BUSY;
   }
 
   /**
@@ -554,7 +582,9 @@ class Receiver {
       return false;
     if (header.version !== VERSION)
       return false;
-    if (!header.items)
+    if (!header.id)
+      return false;
+    if (!header.itemArray)
       return false;
     return true;
   }

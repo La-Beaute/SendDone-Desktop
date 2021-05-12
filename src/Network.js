@@ -4,6 +4,7 @@ const PORT = 8531;
 const CHUNKSIZE = 4 * 1024 * 1024;
 const HEADER_END = '\n\n';
 const VERSION = '0.1.0';
+const MAX_SCAN = 1024;
 const STATE = {
   ERR_FS: 'ERR_FS',
   ERR_NET: 'ERR_NET',
@@ -79,12 +80,11 @@ function _splitHeader(buf) {
  */
 function scan(ip, netmask, myId, callback) {
   let currentIp = _IpStringToNumber(ip) & _IpStringToNumber(netmask);
-  let broadcastIp = _IpStringToNumber(_IpBroadcastIp(ip, netmask));
+  let broadcastIp = Math.min(_IpStringToNumber(_IpBroadcastIp(ip, netmask)), currentIp + MAX_SCAN);
   let ipAsNumber = _IpStringToNumber(ip);
   while (broadcastIp > currentIp) {
     let thisIp = _IpNumberToString(currentIp);
-    // if (ipAsNumber !== currentIp) {
-    if (true) {
+    if (thisIp !== ip) {
       const socket = net.createConnection(PORT, thisIp);
       let recvBuf = Buffer.from([]);
       socket.setTimeout(2000, () => {

@@ -36,7 +36,7 @@ class Sender {
     this._socket = null;
     /**
      * Normalized item array.
-     * @type {Array.<path:string, dir:string, name:string, type:string, size:number>}
+     * @type {Array.<{path:string, dir:string, name:string, type:string, size:number}>}
      */
     this._itemArray = null;
     /**
@@ -261,7 +261,7 @@ class Sender {
    * @returns {boolean}
    */
   async end() {
-    if (this._state === STATE.SEND || this._state === STATE.SENDER_STOP || this._state === STATE.RECEIVER_STOP) {
+    if (this._state === STATE.SEND || this._state === STATE.SEND_REQUEST || this._state === STATE.SENDER_STOP || this._state === STATE.RECEIVER_STOP) {
       if (this._itemHandle) {
         await this._itemHandle.close();
       }
@@ -330,7 +330,20 @@ class Sender {
    * Return the current state
    */
   getState() {
-    return this._state;
+    if (this._state === STATE.SEND_REQUEST) {
+      return { state: this._state };
+    }
+    if (this._state === STATE.SEND) {
+      return {
+        state: this._state,
+        speed: this.getSpeed(),
+        progress: this.getItemProgress(),
+        totalProgress: this.getTotalProgress(),
+        name: this._itemArray[this._index].name
+      };
+    }
+    return { state: this._state };
+
   }
 
   async _send() {
@@ -431,11 +444,11 @@ class Sender {
   /**
    * Create and return send request header.
    * Return null on Any Error.
+   * @param {{}} items
    * @returns {{app:string, version: string, class: string, items:Object.<string, item>}}
    */
-  _createSendRequestHeader() {
-    let header = { app: 'SendDone', version: VERSION, class: 'send-request', id: this._myId, items: {} };
-    header.items = this._deepCopyItems(undefined, this._items, true);
+  _createSendRequestHeader(items) {
+    let header = { app: 'SendDone', version: VERSION, class: 'send-request', id: this._myId, itemArray: this._itemArray };
     return header;
   }
 
@@ -459,7 +472,7 @@ class Sender {
           this._deepCopyItems(dst[itemName], items[itemName], noPath);
         }
         else if (key !== 'path' || !noPath)
-          dst[itemName][key] = itesm[itemName][key];
+          dst[itemName][key] = items[itemName][key];
       }
     }
     if (retFlag)
@@ -492,7 +505,7 @@ class Sender {
    * @returns {{name:string, type: string, size: number}} 
    */
   _createFileHeader(path, name, dir, size) {
-    const header = { path: path, name: name, dir: dir, type: 'file', size: size }
+    const header = { path: path, name: name, dir: dir.split('\\').join('/'), type: 'file', size: size }
     return header;
   }
 
@@ -503,7 +516,7 @@ class Sender {
    * @returns {{name:string, type: string}} 
    */
   _createDirectoryHeader(path, name, dir) {
-    const header = { path: path, name: name, dir: dir, type: 'directory' }
+    const header = { path: path, name: name, dir: dir.split('\\').join('/'), type: 'directory' }
     return header;
   }
 

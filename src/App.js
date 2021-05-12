@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import ItemView from './components/ItemView';
 import DeviceView from './components/DeviceView';
 import Settings from './components/Settings';
+import SendView from './components/SendView';
+import RecvView from './components/RecvView';
 import Blind from './components/Blind';
 import './App.css';
 // Below lines are importing modules from window object.
@@ -21,11 +23,13 @@ function App() {
   const [myId, setMyId] = useState(window.localStorage.getItem('myId'));
   const [sendIp, setSendIp] = useState('');
   const [networks, setNetworks] = useState([]);
-  const [speed, setSpeed] = useState('');
   const [serverSocketOpen, setServerSocketOpen] = useState(false);
   const [showBlind, setShowBlind] = useState(false);
   const [disableScan, setDisableScan] = useState(false);
-  let sendStateHandler = null;
+  const [sending, setSending] = useState(false);
+  const [receiving, setReceiving] = useState(false);
+  const [sendState, setSendState] = useState({});
+  const [recvState, setRecvState] = useState({});
 
   // Select local files.
   const openFile = async () => {
@@ -52,57 +56,37 @@ function App() {
 
   const getNetworks = async () => {
     const ret = await ipcRenderer.invoke('get-networks');
-    if (ret)
+    if (ret) {
+      setMyIp(ret[0].ip);
+      setNetmask(ret[0].netmask);
       setNetworks([...ret]);
+    }
   }
 
   const send = () => {
     if (!myId || !sendIp) {
-      setShowBlind(true);
       window.alert(!myId ? 'Cannot send without ID!' : 'Select device first!');
-      setShowBlind(false);
       return;
     }
     ipcRenderer.invoke('send', sendIp, items, myId);
-    sendStateHandler = setInterval(() => { getSendState() }, 500);
+    setShowBlind(true);
+    setSending(true);
+    getSendState();
   }
 
   const getSendState = async () => {
-    const ret = await ipcRenderer.invoke('get-send-state');
-    if (ret.state === STATE.SEND_WAIT) {
-      setSpeed('Waiting...');
-    }
-    else if (ret.state === STATE.SEND) {
-      setSpeed(ret.speed);
-    }
-    else if (ret.state === STATE.SEND_DONE) {
-      clearInterval(sendStateHandler);
-    }
+    const state = await ipcRenderer.invoke('getSendState');
+    if (state.state === STATE.SEND_REQUEST || state.state === STATE.SEND)
+      // Only set timeout when needed.
+      setTimeout(getSendState, 500);
+    setSendState(() => state);
   }
 
   const getRecvState = async () => {
-    const ret = await ipcRenderer.invoke('getRecvState');
-    if (ret.state === STATE.RECV_WAIT) {
-      let input = window.confirm('Want to receive?');
-      if (input) {
-        ipcRenderer.invoke('acceptRecv');
-      }
-      else {
-        ipcRenderer.invoke('rejectRecv');
-      }
-    }
-    else if (ret.state === STATE.RECV) {
-      setSpeed(ret.speed);
-    }
-    else if (ret.state === STATE.RECV_DONE) {
-      setSpeed('Done!');
-    }
-    else if (ret.state === STATE.ERR_FS) {
-      // TODO Handle error.
-    }
-    else if (ret.state === STATE.ERR_NET) {
-      // TODO Handle error.
-    }
+    const state = await ipcRenderer.invoke('getRecvState');
+    if (state.state === STATE.RECV_WAIT)
+      setReceiving(true);
+    setRecvState(() => state);
   }
 
   const listNetworks = networks.map((network) => {
@@ -143,7 +127,8 @@ function App() {
 
     if (myId)
       ipcRenderer.invoke('changeMyId', myId);
-    getNetworks();
+    if (!myIp)
+      getNetworks();
     intervalFun();
     const intervalHandler = setInterval(() => { intervalFun(); }, 1000);
     return () => {
@@ -188,7 +173,7 @@ function App() {
           <div className="GridItem">
             <div className="Box">
               <ItemView items={items} /* curDir={itemViewCurDir} setCurDir={setItemViewCurDir} */ checkedItems={checkedItems} setCheckedItems={setCheckedItems} />
-              <button onClick={() => { deleteCheckedItems(); }} className="TextButton"> Delete Check</button>
+              <button onClick={deleteCheckedItems} className="TextButton"> Delete Check</button>
               <button onClick={openFile} className="TextButton">Open File</button>
               <button onClick={openDirectory} className="TextButton">Open Folder</button>
             </div>
@@ -206,6 +191,18 @@ function App() {
       </div>
       {
         showBlind && <Blind />
+      }
+      {
+        receiving && <RecvView
+          setReceiving={setReceiving}
+          setShowBlind={setShowBlind}
+          state={recvState} />
+      }
+      {
+        sending && <SendView
+          setSending={setSending}
+          setShowBlind={setShowBlind}
+          state={sendState} />
       }
       {
         showSettings && <Settings
