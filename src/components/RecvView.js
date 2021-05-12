@@ -17,6 +17,10 @@ function RecvView({ setShowBlind, setReceiving, state }) {
     setShowBlind(false);
   }
 
+  const quit = () => {
+    window.ipcRenderer.invoke('setReceiverIdle');
+  }
+
   const acceptRecv = () => {
     window.ipcRenderer.invoke('acceptRecv', window.localStorage.getItem('downloadDirectory'));
   }
@@ -71,7 +75,7 @@ function RecvView({ setShowBlind, setReceiving, state }) {
           Receive Done!
         </div>
         <div className="SendView-Buttons">
-          <button onClick={endRecv} className="TextButton">OK</button>
+          <button onClick={quit} className="TextButton">OK</button>
         </div>
       </div>
     );
@@ -83,7 +87,7 @@ function RecvView({ setShowBlind, setReceiving, state }) {
           Network Error. Cannot send.
         </div>
         <div className="SendView-Buttons">
-          <button onClick={endRecv} className="TextButton">OK</button>
+          <button onClick={quit} className="TextButton">OK</button>
         </div>
       </div>
     );
@@ -94,7 +98,7 @@ function RecvView({ setShowBlind, setReceiving, state }) {
           File System Error. Cannot send.
         </div>
         <div className="SendView-Buttons">
-          <button onClick={endRecv} className="TextButton">OK</button>
+          <button onClick={quit} className="TextButton">OK</button>
         </div>
       </div>
     );
@@ -105,7 +109,7 @@ function RecvView({ setShowBlind, setReceiving, state }) {
           Sender has terminated receiving.
         </div>
         <div className="SendView-Buttons">
-          <button onClick={endRecv} className="TextButton">OK</button>
+          <button onClick={quit} className="TextButton">OK</button>
         </div>
       </div>
     );
@@ -115,7 +119,7 @@ function RecvView({ setShowBlind, setReceiving, state }) {
         W T H ?
         </div>
       <div className="SendView-Buttons">
-        <button onClick={endRecv} className="TextButton">Cancel</button>
+        <button onClick={quit} className="TextButton">Cancel</button>
       </div>
     </div>
   );

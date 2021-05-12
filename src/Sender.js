@@ -444,11 +444,11 @@ class Sender {
   /**
    * Create and return send request header.
    * Return null on Any Error.
+   * @param {{}} items
    * @returns {{app:string, version: string, class: string, items:Object.<string, item>}}
    */
-  _createSendRequestHeader() {
-    let header = { app: 'SendDone', version: VERSION, class: 'send-request', id: this._myId, items: {} };
-    header.items = this._deepCopyItems(undefined, this._items, true);
+  _createSendRequestHeader(items) {
+    let header = { app: 'SendDone', version: VERSION, class: 'send-request', id: this._myId, itemArray: this._itemArray };
     return header;
   }
 
@@ -472,7 +472,7 @@ class Sender {
           this._deepCopyItems(dst[itemName], items[itemName], noPath);
         }
         else if (key !== 'path' || !noPath)
-          dst[itemName][key] = itesm[itemName][key];
+          dst[itemName][key] = items[itemName][key];
       }
     }
     if (retFlag)

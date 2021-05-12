@@ -210,6 +210,7 @@ ipcMain.handle('endSend', () => {
 
 ipcMain.handle('getRecvState', () => {
   const state = receiver.getState();
+  console.log(state);
   return state;
 })
 

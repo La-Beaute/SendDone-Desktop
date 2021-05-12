@@ -23,7 +23,7 @@ class Receiver {
     this._recvSocket = null;
     /**
      * Send Request header.
-     * @type {{app: string, version:string, class:string, id:string, items:{}}}
+     * @type {{app: string, version:string, class:string, id:string, itemArray:Array.<>}}
      */
     this._sendRequestHeader = null;
     /**
@@ -438,10 +438,10 @@ class Receiver {
       return {
         state: this._state,
         id: this._sendRequestHeader.id,
-        items: this._sendRequestHeader.items
+        itemArray: this._sendRequestHeader.itemArray
       }
     }
-    return this._state;
+    return { state: this._state };
   }
 
   /**
@@ -450,7 +450,7 @@ class Receiver {
    * user has been acknowledged about the status and okay to do another job.
    */
   setStateIdle() {
-    if (this._state === STATE.RECV_BUSY)
+    if (this._state === STATE.RECV_BUSY || this._state === STATE.RECV_DONE)
       this._state = STATE.IDLE;
   }
 
@@ -584,7 +584,7 @@ class Receiver {
       return false;
     if (!header.id)
       return false;
-    if (!header.items)
+    if (!header.itemArray)
       return false;
     return true;
   }
