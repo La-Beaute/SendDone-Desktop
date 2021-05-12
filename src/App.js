@@ -156,7 +156,7 @@ function App() {
       </div>
       <div className="Main">
         <div className="Box1">
-          <ItemView items={items} curDir={itemViewCurDir} setCurDir={setItemViewCurDir} checkedItems={checkedItems} setCheckedItems={setCheckedItems} />
+          <ItemView items={items} /* curDir={itemViewCurDir} setCurDir={setItemViewCurDir} */ checkedItems={checkedItems} setCheckedItems={setCheckedItems} />
           <button onClick={() => { deleteCheckedItems(); }} className="TextButton"> Delete Check</button>
           <button onClick={openFile} className="TextButton">Open File</button>
           <button onClick={openDirectory} className="TextButton">Open Folder</button>
