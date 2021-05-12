@@ -9,16 +9,9 @@ class Receiver {
    * @param {string} ip 
    * @param {string} myId 
    */
-  constructor(ip, myId) {
+  constructor() {
     this._state = STATE.IDLE;
-    if (!myId) {
-      this._state = STATE.ERR_FS;
-      return;
-    }
-    /**
-     * @type {String} my id.
-     */
-    this._myId = myId;
+    this._myId = '';
     /**
      * @type {net.Server}
      */
@@ -111,8 +104,6 @@ class Receiver {
         this._state = STATE.ERR_NET;
       }
     }
-
-    this.open(ip);
   }
 
   /**
@@ -120,7 +111,7 @@ class Receiver {
    * Note that the port number is fixed thus cannot be changed.
    * @param {String} ip address. 
    */
-  open(ip) {
+  openServerSocket(ip) {
     if (!ip) {
       // ip is not set.
       return;
@@ -359,20 +350,6 @@ class Receiver {
   }
 
   /**
-   * Return whether the server socket is not null and it is listening.
-   * @returns {boolean}
-   */
-  isExposed() {
-    return this._serverSocket && this._serverSocket.listening;
-  }
-
-  /**
-   * @returns {Array<{name:String, type:String, size:number}>}
-   */
-  getitemArray() {
-    return this._itemArray;
-  }
-  /**
    * Close the server socket.
    */
   closeServerSocket() {
@@ -380,6 +357,32 @@ class Receiver {
       this._serverSocket.close(() => { this._serverSocket = null; });
     }
   }
+
+  /**
+   * Return whether the server socket is not null and it is listening.
+   * @returns {boolean}
+   */
+  isOpen() {
+    return this._serverSocket && this._serverSocket.listening;
+  }
+
+  /**
+   * Change this my id.
+   * @param {string} newId 
+   */
+  changeMyId(newId) {
+    if (!newId)
+      return false;
+    this._myId = newId;
+    return true;
+  }
+  /**
+   * @returns {Array<{name:String, type:String, size:number}>}
+   */
+  getitemArray() {
+    return this._itemArray;
+  }
+
   /**
    * Return the # of bytes per second.
    * If the # of bytes or the interval is 0, return previous measured speed.

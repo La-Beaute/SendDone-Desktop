@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './Settings.css';
-function Settings({ setShowSettings, myId, setMyId }) {
+function Settings({ setShowSettings, setShowBlind, myId, setMyId }) {
   // dummy states to save temporarily and to incur render when changing the values.
   let [downloadDirectory, setDownloadDirectory] = useState(window.localStorage.getItem('downloadDirectory'));
   let [tmpMyId, setTmpMyId] = useState(myId);
@@ -44,8 +44,15 @@ function Settings({ setShowSettings, myId, setMyId }) {
         </div>
       </div>
       <div className="Settings-Buttons">
-        <button onClick={() => { setShowSettings(false); }} className="TextButton">Cancel</button>
-        <button onClick={() => { saveSettings(); setShowSettings(false); }} className="TextButton">Done</button>
+        <button onClick={() => {
+          setShowBlind(false);
+          setShowSettings(false);
+        }} className="TextButton">Cancel</button>
+        <button onClick={() => {
+          saveSettings();
+          setShowBlind(false);
+          setShowSettings(false);
+        }} className="TextButton">Done</button>
       </div>
     </div>
   )

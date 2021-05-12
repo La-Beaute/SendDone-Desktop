@@ -7,7 +7,7 @@ import './ItemView.css';
  * @param {{items:Array.<{path:string, dir: string, name:string, type:'file'|'directory'}>, curDir:string, setCurDir:function, checkedItems:{}, setCheckedItems:function}} items 
  * @returns 
  */
-function ItemView({ items, curDir, setCurDir, checkedItems, setCheckedItems }) {
+function ItemView({ items, /* curDir, setCurDir, */ checkedItems, setCheckedItems }) {
   let [checkAll, setCheckAll] = useState(false);
 
   const showItems = () => {

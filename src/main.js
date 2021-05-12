@@ -7,6 +7,9 @@ const { Sender } = require('./Sender');
 const { Receiver } = require('./Receiver');
 const isDev = require('electron-is-dev');
 
+/**
+ * @type {BrowserWindow}
+ */
 var mainWindow = null;
 /**
  * @type {Sender}
@@ -15,15 +18,7 @@ var sender = null;
 /**
  * @type {Receiver}
  */
-var receiver = null;
-/**
- * @type {String}
- */
-var myId = 'hello';
-/**
- * @type {String}
- */
-var myIp = '';
+var receiver = new Receiver();
 
 function createWindow() {
   // Create the browser window.
@@ -87,7 +82,7 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', function () {
-  if (receiver && receiver.isExposed())
+  if (receiver && receiver.isOpen())
     receiver.closeServerSocket();
   if (process.platform !== 'darwin') {
     app.quit();
@@ -157,41 +152,38 @@ ipcMain.handle('get-networks', () => {
   return network.getMyNetworks();
 })
 
-ipcMain.handle('openServerSocket', (event, arg) => {
-  if (receiver) {
+ipcMain.handle('openServerSocket', (event, myIp) => {
+  if (receiver.isOpen()) {
     receiver.closeServerSocket();
   }
-  myIp = arg;
-  receiver = new Receiver(myIp, myId);
+  receiver.openServerSocket(myIp);
   return true;
 })
 
 ipcMain.handle('closeServerSocket', () => {
   if (receiver) {
     receiver.closeServerSocket();
-    receiver = null;
     return true;
   }
   return false;
 })
 
 ipcMain.handle('isServerSocketOpen', () => {
-  return receiver && receiver.isExposed();
+  return receiver && receiver.isOpen();
 })
 
-ipcMain.handle('set-id', (event, arg) => {
-  myId = arg;
+ipcMain.handle('set-id', (event, myId) => {
+  if (myId)
+    receiver.changeMyId(myId);
 })
 
-ipcMain.handle('send', (event, arg) => {
-  // Close receiver.
+ipcMain.handle('send', (event, ip, items, myId) => {
+  // set receiver busy.
   if (receiver) {
     receiver.setStateBusy();
   }
-  const ip = arg.ip;
-  const itmes = arg.items;
   if (!sender) {
-    sender = new Sender('id');
+    sender = new Sender(myId);
     sender.send(items, ip);
   }
 })
@@ -254,10 +246,20 @@ ipcMain.handle('rejectRecv', () => {
   }
 })
 
+ipcMain.handle('scan', (event, myIp, netmask, myId) => {
+  network.scan(myIp, netmask, myId, (deviceIp, deviceVersion, deviceId, deviceOs) => {
+    mainWindow.webContents.send('scannedDevice', deviceIp, deviceVersion, deviceId, deviceOs);
+  });
+})
+
 ipcMain.handle('setDownloadDirectory', () => {
   let ret = dialog.showOpenDialogSync(mainWindow, {
     title: "Set Download Directory",
     properties: ["openDirectory"]
   });
   return ret[0];
+})
+
+ipcMain.handle('changeMyId', (event, myId) => {
+  receiver.changeMyId(myId);
 })
