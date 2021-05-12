@@ -505,7 +505,7 @@ class Sender {
    * @returns {{name:string, type: string, size: number}} 
    */
   _createFileHeader(path, name, dir, size) {
-    const header = { path: path, name: name, dir: dir, type: 'file', size: size }
+    const header = { path: path, name: name, dir: dir.split('\\').join('/'), type: 'file', size: size }
     return header;
   }
 
@@ -516,7 +516,7 @@ class Sender {
    * @returns {{name:string, type: string}} 
    */
   _createDirectoryHeader(path, name, dir) {
-    const header = { path: path, name: name, dir: dir, type: 'directory' }
+    const header = { path: path, name: name, dir: dir.split('\\').join('/'), type: 'directory' }
     return header;
   }
 
