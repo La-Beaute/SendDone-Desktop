@@ -127,7 +127,8 @@ function App() {
 
     if (myId)
       ipcRenderer.invoke('changeMyId', myId);
-    getNetworks();
+    if (!myIp)
+      getNetworks();
     intervalFun();
     const intervalHandler = setInterval(() => { intervalFun(); }, 1000);
     return () => {
