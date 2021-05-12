@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ItemView from './components/ItemView';
+import DeviceView from './components/DeviceView';
 import Settings from './components/Settings';
 import Blind from './components/Blind';
 import './App.css';
@@ -8,19 +9,22 @@ import './App.css';
 // const networking = window.networking;
 const ipcRenderer = window.ipcRenderer;
 const STATE = window.STATE;
-let startTime;
 
 function App() {
   const [items, setItems] = useState({});
   const [checkedItems, setCheckedItems] = useState({});
-  const [itemViewCurDir, setItemViewCurDir] = useState('');
+  // const [itemViewCurDir, setItemViewCurDir] = useState('');
+  const [deviceArray, setdeviceArray] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [myIp, setMyIp] = useState('');
+  const [netmask, setNetmask] = useState('');
   const [myId, setMyId] = useState(window.localStorage.getItem('myId'));
   const [sendIp, setSendIp] = useState('');
   const [networks, setNetworks] = useState([]);
   const [speed, setSpeed] = useState('');
   const [serverSocketOpen, setServerSocketOpen] = useState(false);
+  const [showBlind, setShowBlind] = useState(false);
+  const [disableScan, setDisableScan] = useState(false);
   let sendStateHandler = null;
 
   // Select local files.
@@ -53,8 +57,13 @@ function App() {
   }
 
   const send = () => {
-    ipcRenderer.invoke('send', { ip: sendIp, items: items });
-    startTime = Date.now();
+    if (!myId || !sendIp) {
+      setShowBlind(true);
+      window.alert(!myId ? 'Cannot send without ID!' : 'Select device first!');
+      setShowBlind(false);
+      return;
+    }
+    ipcRenderer.invoke('send', sendIp, items, myId);
     sendStateHandler = setInterval(() => { getSendState() }, 500);
   }
 
@@ -67,8 +76,6 @@ function App() {
       setSpeed(ret.speed);
     }
     else if (ret.state === STATE.SEND_DONE) {
-      console.log(ret.state);
-      setSpeed((Date.now() - startTime) + 'ms');
       clearInterval(sendStateHandler);
     }
   }
@@ -99,8 +106,9 @@ function App() {
   }
 
   const listNetworks = networks.map((network) => {
-    return <option value={network.ip} key={network.ip}>{network.name} | {network.ip}</option>;
+    return <option value={network.ip + '/' + network.netmask} key={network.ip}>{network.name} | {network.ip}</option>;
   });
+
 
   const openServerSocket = async () => {
     ipcRenderer.invoke('openServerSocket', { ip: myIp });
@@ -109,6 +117,14 @@ function App() {
   const closeServerSocket = async () => {
     let ret = await ipcRenderer.invoke('closeServerSocket');
     return ret;
+  }
+
+  const scan = () => {
+    setDisableScan(true);
+    setSendIp('');
+    setdeviceArray([]);
+    ipcRenderer.invoke('scan', myIp, netmask, myId);
+    setTimeout(() => { setDisableScan(false); }, 3000);
   }
 
   // useEffect is something like componentDidMount in React class component.
@@ -121,57 +137,82 @@ function App() {
         // Get receiver state only when the server socket is open.
         getRecvState();
     }
+    ipcRenderer.on('scannedDevice', (event, deviceIp, deviceVersion, deviceId, deviceOs) => {
+      setdeviceArray(() => [...deviceArray, { ip: deviceIp, version: deviceVersion, id: deviceId, os: deviceOs }]);
+    });
+
+    if (myId)
+      ipcRenderer.invoke('changeMyId', myId);
     getNetworks();
     intervalFun();
     const intervalHandler = setInterval(() => { intervalFun(); }, 1000);
-    return () => clearInterval(intervalHandler);
-  }, []);
+    return () => {
+      ipcRenderer.removeAllListeners();
+      clearInterval(intervalHandler);
+    };
+  }, [myId, deviceArray]);
 
   return (
     <div className="App">
-      <div className="Head">
-        <div className="Head-Header">
-          SendDone
+      <div className="GridItem">
+        <div className="Head">
+          <div className="Head-Header">
+            SendDone
           <br />
           Hi, {myId}!
         </div>
-        <div className="Head-Buttons">
-          <select onChange={(e) => {
-            setMyIp(e.target.value);
-            if (serverSocketOpen) {
-              // Close and re open server socket.
-              closeServerSocket().then(openServerSocket);
+          <div className="Head-Buttons">
+            <select onChange={(e) => {
+              const [ip, netmask] = e.target.value.split('/');
+              setMyIp(ip);
+              setNetmask(netmask);
+              if (serverSocketOpen) {
+                // Close and re open server socket.
+                closeServerSocket().then(openServerSocket);
+              }
+            }}>
+              {listNetworks}
+            </select>
+            {serverSocketOpen
+              ?
+              <button onClick={closeServerSocket} className="TextButton ServerStatOpen">Close Server</button>
+              :
+              <button onClick={openServerSocket} className="TextButton ServerStatClose">Open Server</button>
             }
-          }}>
-            {listNetworks}
-          </select>
-          {serverSocketOpen
-            ?
-            <button onClick={closeServerSocket} className="TextButton ServerStatOpen">Close Server</button>
-            :
-            <button onClick={openServerSocket} className="TextButton ServerStatClose">Open Server</button>
-          }
-          <button onClick={() => { setShowSettings(true); }} className="TextButton">Settings</button>
+            <button onClick={() => { setShowBlind(true); setShowSettings(true); }} className="TextButton">Settings</button>
+          </div>
         </div>
       </div>
-      <div className="Main">
-        <div className="Box1">
-          <ItemView items={items} curDir={itemViewCurDir} setCurDir={setItemViewCurDir} checkedItems={checkedItems} setCheckedItems={setCheckedItems} />
-          <button onClick={() => { deleteCheckedItems(); }} className="TextButton"> Delete Check</button>
-          <button onClick={openFile} className="TextButton">Open File</button>
-          <button onClick={openDirectory} className="TextButton">Open Folder</button>
-        </div>
-        <div className="Box2">
-          <input type="text" onChange={(event) => { setSendIp(event.target.value); }}></input>
-          <button onClick={send} className="TextButton">Send</button>
-          {speed}
+      <div className="GridItem">
+        <div className="Body">
+          <div className="GridItem">
+            <div className="Box">
+              <ItemView items={items} /* curDir={itemViewCurDir} setCurDir={setItemViewCurDir} */ checkedItems={checkedItems} setCheckedItems={setCheckedItems} />
+              <button onClick={() => { deleteCheckedItems(); }} className="TextButton"> Delete Check</button>
+              <button onClick={openFile} className="TextButton">Open File</button>
+              <button onClick={openDirectory} className="TextButton">Open Folder</button>
+            </div>
+          </div>
+          <div className="GridItem">
+            <div className="Box">
+              <DeviceView deviceArray={deviceArray}
+                sendIp={sendIp}
+                setSendIp={setSendIp} />
+              <button onClick={scan} disabled={disableScan} className="TextButton">Scan</button>
+              <button onClick={send} className="TextButton">Send</button>
+            </div>
+          </div>
         </div>
       </div>
       {
-        showSettings && <Blind />
+        showBlind && <Blind />
       }
       {
-        showSettings && <Settings setShowSettings={setShowSettings} myId={myId} setMyId={setMyId} />
+        showSettings && <Settings
+          setShowSettings={setShowSettings}
+          setShowBlind={setShowBlind}
+          myId={myId}
+          setMyId={setMyId} />
       }
     </div >
   );

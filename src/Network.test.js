@@ -279,7 +279,7 @@ describe('Test stop while sending', () => {
   });
 
   after(async () => {
-    // await delTmpDir();
+    await delTmpDir();
     receiver.closeServerSocket();
   });
 
