@@ -19,10 +19,13 @@ function RecvView({ setShowBlind, setReceiving, state }) {
 
   const quit = () => {
     window.ipcRenderer.invoke('setReceiverIdle');
+    setReceiving(false);
+    setShowBlind(false);
   }
 
   const acceptRecv = () => {
-    window.ipcRenderer.invoke('acceptRecv', window.localStorage.getItem('downloadDirectory'));
+    const downloadDirectory = window.localStorage.getItem('downloadDirectory');
+    window.ipcRenderer.invoke('acceptRecv', downloadDirectory);
   }
 
   const rejectRecv = () => {
@@ -84,7 +87,7 @@ function RecvView({ setShowBlind, setReceiving, state }) {
     return (
       <div className="SendView">
         <div className="SendView-Body">
-          Network Error. Cannot send.
+          Network Error. Cannot receive.
         </div>
         <div className="SendView-Buttons">
           <button onClick={quit} className="TextButton">OK</button>
@@ -95,7 +98,7 @@ function RecvView({ setShowBlind, setReceiving, state }) {
     return (
       <div className="SendView">
         <div className="SendView-Body">
-          File System Error. Cannot send.
+          File System Error. Cannot receive.
         </div>
         <div className="SendView-Buttons">
           <button onClick={quit} className="TextButton">OK</button>

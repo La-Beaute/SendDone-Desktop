@@ -210,7 +210,6 @@ ipcMain.handle('endSend', () => {
 
 ipcMain.handle('getRecvState', () => {
   const state = receiver.getState();
-  console.log(state);
   return state;
 })
 
@@ -218,7 +217,7 @@ ipcMain.handle('endRecv', () => {
   receiver.end();
 })
 
-ipcMain.handle('acceptRecv', (downloadDirectory) => {
+ipcMain.handle('acceptRecv', (event, downloadDirectory) => {
   if (receiver) {
     receiver.acceptRecv(downloadDirectory ? downloadDirectory : app.getPath('downloads'));
   }
