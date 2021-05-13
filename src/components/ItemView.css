@@ -1,22 +1,22 @@
-.ItemView{
+.ItemView {
   width: 100%;
   height: 85%;
   align-items: center;
   margin: 0 auto;
-  padding: 10px;
-  overflow:hidden;
+  overflow: hidden;
 }
 
-.ItemViewTable{
+.ItemViewTable {
   width: 100%;
   height: 90%;
-  border-radius: 10px 0 0 10px;
   overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid grey;
+  border-radius: 10px 10px 10px 10px;
+  background-color: white;
 }
 
-.ItemElement{
+.ItemElement {
   display: grid;
   grid-template-columns: 19fr 1fr;
   width: 100%;
@@ -28,12 +28,12 @@
   text-overflow: ellipsis;
 }
 
-.ItemHead{
+.ItemHead {
   background-color: grey;
   position: sticky;
   top: 0;
 }
-.ItemName{
+.ItemName {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
