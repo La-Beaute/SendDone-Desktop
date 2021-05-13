@@ -1,42 +1,42 @@
-.DeviceView{
+.DeviceView {
   width: 100%;
   height: 85%;
-  padding: 10px;
 }
 
-.DeviceViewTable{
+.DeviceViewTable {
   width: 100%;
   height: 90%;
-  border-radius: 10px 0 0 10px;
+  background-color: white;
   overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid grey;
+  font-family: "Roboto";
 }
 
-.OsImage{
+.OsImage {
   height: 90%;
   width: auto;
 }
 
-.DeviceElement{
+.DeviceElement {
   display: flex;
   flex-direction: row;
   align-items: center;
   border-bottom: 1px solid grey;
   transition: 0.2s;
 }
-.DeviceElement:hover{
-  background-color: #CCCCCC;
+.DeviceElement:hover {
+  background-color: #cccccc;
 }
-.DeviceSelected{
-  background-color: #80336633;
+.DeviceSelected {
+  background-color: #ffd05033;
 }
-.DeviceElement-Box{
+.DeviceElement-Box {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
 }
-.DeviceElement-ID{
+.DeviceElement-ID {
   font-size: 1.5rem;
   font-weight: bold;
 }
