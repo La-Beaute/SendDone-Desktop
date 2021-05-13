@@ -31,7 +31,7 @@ function ItemView({ items, /* curDir, setCurDir, */ checkedItems, setCheckedItem
         ret.push(
           <div className='ItemElement' key={item.dir + item.name}>
             <div className='ItemName'>
-              File | {item.name}
+              📄 | {item.name}
             </div>
             <div>
               <input type='checkbox' checked={(item.name in checkedItems) || checkAll}

@@ -38,17 +38,25 @@ function Settings({ setShowSettings, setShowBlind, myId, setMyId }) {
           <div className="Settings-Item-Key">
             My ID:
           </div>
-          <input type='text' onChange={(e) => {
+          <input type='text' onClick={() => { console.log('click'); }} onChange={(e) => {
             setTmpMyId(() => e.target.value);
           }} value={tmpMyId ? tmpMyId : ''} className="Settings-Item-Value" />
         </div>
       </div>
       <div className="Settings-Buttons">
         <button onClick={() => {
+          if (!myId || !window.localStorage.getItem('downloadDirectory')) {
+            window.ipcRenderer.invoke('showMessage', 'Please set your ID and your download directory!');
+            return;
+          }
           setShowBlind(false);
           setShowSettings(false);
         }} className="TextButton">Cancel</button>
         <button onClick={() => {
+          if (!tmpMyId || !downloadDirectory) {
+            window.ipcRenderer.invoke('showMessage', 'Please set your ID and your download directory!');
+            return;
+          }
           saveSettings();
           setShowBlind(false);
           setShowSettings(false);

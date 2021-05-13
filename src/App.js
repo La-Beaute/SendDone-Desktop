@@ -55,8 +55,11 @@ function App() {
   }
 
   const getNetworks = async () => {
+    /**
+     * @type {Array.<>} ret
+     */
     const ret = await ipcRenderer.invoke('get-networks');
-    if (ret) {
+    if (ret.length > 0) {
       setMyIp(ret[0].ip);
       setNetmask(ret[0].netmask);
       setNetworks([...ret]);
@@ -65,7 +68,7 @@ function App() {
 
   const send = () => {
     if (!myId || !sendIp) {
-      window.alert(!myId ? 'Cannot send without ID!' : 'Select device first!');
+      window.ipcRenderer.invoke('showMessage', !myId ? 'Cannot send without ID!' : 'Select device first!');
       return;
     }
     ipcRenderer.invoke('send', sendIp, items, myId);
@@ -130,12 +133,15 @@ function App() {
     if (!myIp)
       getNetworks();
     intervalFun();
+    if (!myId) {
+      setShowSettings(true);
+    }
     const intervalHandler = setInterval(() => { intervalFun(); }, 1000);
     return () => {
       ipcRenderer.removeAllListeners();
       clearInterval(intervalHandler);
     };
-  }, [myId, deviceArray]);
+  }, [myId, myIp, deviceArray]);
 
   return (
     <div className="App">

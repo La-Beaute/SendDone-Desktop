@@ -240,9 +240,15 @@ ipcMain.handle('setDownloadDirectory', () => {
     title: "Set Download Directory",
     properties: ["openDirectory"]
   });
-  return ret[0];
+  if (ret)
+    return ret[0];
+  return '';
 })
 
 ipcMain.handle('changeMyId', (event, myId) => {
   receiver.changeMyId(myId);
+})
+
+ipcMain.handle('showMessage', (event, message) => {
+  dialog.showMessageBoxSync(mainWindow, { title: 'SendDone-Desktop', message: message });
 })
