@@ -2,16 +2,55 @@
   box-sizing: border-box;
   user-select: none;
   -webkit-user-select: none;
+  z-index: 100;
 }
 .App {
   position: relative;
   width: 100vw;
   height: 100vh;
+  overflow: hidden;
   display: grid;
   grid-template-rows: 3fr 8fr;
-  background-image: url("https://anima-uploads.s3.amazonaws.com/projects/608173f03665689c6dd2113c/releases/608174584c75fb89f1db2209/img/background-color-gradient@1x.png");
-  background-size: cover;
+  background: linear-gradient(45deg, orange, yellow);
+  background-size: 300% 300%;
+  animation: App-Animation 3s infinite alternate;
+}
+@keyframes App-Animation {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 100%;
+  }
+}
+.App-Back0 {
+  position: absolute;
+  width: 100vw;
+  height: 50vh;
+  top: 50vh;
+  left: 0;
   background-color: white;
+}
+.App-Back1 {
+  position: absolute;
+  width: 100vw;
+  height: 60vh;
+  top: 20vh;
+  right: 50vw;
+  border-radius: 50%;
+  background-color: white;
+}
+.App-Back2 {
+  position: absolute;
+  width: 100vw;
+  height: 60vh;
+  top: 20vh;
+  left: 50vw;
+  border-radius: 50%;
+  background-color: #00000000;
+}
+[class^="App-Back"] {
+  z-index: 0;
 }
 .Head {
   display: flex;
@@ -61,6 +100,7 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
+  z-index: 2;
 }
 
 .TextButton {

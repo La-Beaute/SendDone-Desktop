@@ -145,6 +145,9 @@ function App() {
 
   return (
     <div className="App">
+      <div className="App-Back0" />
+      <div className="App-Back1" />
+      <div className="App-Back2" />
       <div className="GridItem">
         <div className="Head">
           <div className="Head-Header">
