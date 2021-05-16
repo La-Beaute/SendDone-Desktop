@@ -79,7 +79,7 @@ function _splitHeader(buf) {
  * @param {scanCallback} callback Callback function to call when found a device.
  */
 function scan(ip, netmask, myId, callback) {
-  let currentIp = _IpStringToNumber(ip) & _IpStringToNumber(netmask);
+  let currentIp = (_IpStringToNumber(ip) & _IpStringToNumber(netmask)) >>> 0;
   let broadcastIp = Math.min(_IpStringToNumber(_IpBroadcastIp(ip, netmask)), currentIp + MAX_SCAN);
   let ipAsNumber = _IpStringToNumber(ip);
   while (broadcastIp > currentIp) {
