@@ -6,6 +6,7 @@ import SendView from './components/SendView';
 import RecvView from './components/RecvView';
 import Blind from './components/Blind';
 import './App.css';
+import image from './settings.png';
 // Below lines are importing modules from window object.
 // Look at 'preload.js' for more understanding.
 // const networking = window.networking;
@@ -153,8 +154,8 @@ function App() {
           <div className="Head-Header">
             SendDone
           <br />
-          Hi, {myId}!
-        </div>
+            <div style={{ fontSize: '2.5rem'}}>Hi, {myId}!</div>
+          </div>
           <div className="Head-Buttons">
             <select onChange={(e) => {
               const [ip, netmask] = e.target.value.split('/');
@@ -173,7 +174,7 @@ function App() {
               :
               <button onClick={openServerSocket} className="TextButton ServerStatClose">Open Server</button>
             }
-            <button onClick={() => { setShowBlind(true); setShowSettings(true); }} className="TextButton">Settings</button>
+            <img src={image} alt='Setting' onClick={() => { setShowBlind(true); setShowSettings(true);}} className='Setting'></img>
           </div>
         </div>
       </div>

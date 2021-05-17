@@ -13,7 +13,7 @@
   overflow-y: auto;
   border: 1px solid grey;
   border-radius: 10px 10px 10px 10px;
-  background-color: white;
+  background-color: #eeeeee;
 }
 
 .ItemElement {
@@ -26,6 +26,9 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  color: black;
+  font-weight: bold;
+  font-size: 0.9rem;
 }
 
 .ItemHead {

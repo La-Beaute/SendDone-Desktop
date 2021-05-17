@@ -11,7 +11,7 @@
   overflow: hidden;
   display: grid;
   grid-template-rows: 3fr 8fr;
-  background: linear-gradient(45deg, orange, yellow);
+  background: linear-gradient(45deg, orange, rgb(255, 208, 0));
   background-size: 300% 300%;
   animation: App-Animation 3s infinite alternate;
 }
@@ -66,6 +66,13 @@
   font-size: 3rem;
   font-weight: bold;
   font-family: "Roboto";
+  color: #f5f5f5;
+  text-shadow: 1px 1px 1px #919191, 1px 2px 1px #919191, 1px 3px 1px #919191,
+    1px 4px 1px #919191, 1px 5px 1px #919191, 1px 6px 1px #919191,
+    1px 7px 1px #919191, 1px 8px 1px #919191, 1px 9px 1px #919191,
+    1px 10px 1px #919191, 1px 18px 6px rgba(16, 16, 16, 0.4),
+    1px 22px 10px rgba(16, 16, 16, 0.2), 1px 25px 35px rgba(16, 16, 16, 0.2),
+    1px 30px 60px rgba(16, 16, 16, 0.4);
 }
 .Head-Buttons {
   position: absolute;
@@ -107,9 +114,11 @@
   width: fit-content;
   background-color: orange;
   border: 1px solid gray;
-  border-radius: 30px;
+  outline: 0;
+  border-radius: 1rem;
   box-shadow: 2px 2px 2px gray;
-  margin: 5px;
+  margin-top: 0.5rem;
+  margin-right: 0.5rem;
   color: black;
   font-size: 1rem;
   font-weight: bold;
@@ -120,16 +129,50 @@
   white-space: nowrap;
 }
 .TextButton:hover {
-  border-color: purple;
   color: white;
 }
 .ServerStatOpen {
-  color: green;
+  background-color: #4caf50;
+  color: rgb(205, 252, 205);
+  margin-right: 0;
 }
+
 .ServerStatClose {
-  color: red;
+  background-color: #f44336;
+  color: rgb(250, 206, 206);
+  margin-right: 0;
 }
 
 .TextButton:disabled {
   background-color: gray;
+}
+
+select {
+  font-family: "Roboto";
+  font-weight: bold;
+  font-size: 0.8rem;
+  border: 1px solid #aaa;
+  border-radius: 0.5rem;
+  padding: 0.2rem;
+  color: #444;
+  background-color: #fff;
+  box-shadow: 0 1px 0 1px rgba(0, 0, 0, 0.04);
+}
+select:hover {
+  border-color: #888;
+}
+select:focus {
+  border-color: #aaa;
+  box-shadow: 0 0 1px 3px rgba(59, 153, 252, 0.7);
+  box-shadow: 0 0 0 3px -moz-mac-focusring;
+  color: #222;
+  outline: none;
+}
+select:disabled {
+  opacity: 0.5;
+}
+
+.Setting {
+  height: 2.5rem;
+  margin-top: 0.5rem;
 }
