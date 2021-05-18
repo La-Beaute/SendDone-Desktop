@@ -2,7 +2,7 @@
   box-sizing: border-box;
   user-select: none;
   -webkit-user-select: none;
-  z-index: 100;
+  z-index: 5;
 }
 .App {
   position: relative;
