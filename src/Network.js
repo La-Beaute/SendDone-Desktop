@@ -26,6 +26,11 @@ const STATE = {
   RECEIVER_END: 'RECEIVER_END'
 };
 const OS = os.platform();
+let scanIndex = 0;
+let scanSize = 10;
+const scanIsAlive = Array(scanSize).fill(false);
+const scanTimeout = 300;
+
 /**
  * Return an array of dictionary each looks like: { name, ip, netmask }.
  * @returns {Array.<{name:String, ip:String, netmask:String}>} Array of networks.
@@ -81,58 +86,96 @@ function _splitHeader(buf) {
 function scan(ip, netmask, myId, callback) {
   let currentIp = (_IpStringToNumber(ip) & _IpStringToNumber(netmask)) >>> 0;
   let broadcastIp = Math.min(_IpStringToNumber(_IpBroadcastIp(ip, netmask)), currentIp + MAX_SCAN);
-  let ipAsNumber = _IpStringToNumber(ip);
-  while (broadcastIp > currentIp) {
-    let thisIp = _IpNumberToString(currentIp);
-    if (thisIp !== ip) {
-      const socket = net.createConnection(PORT, thisIp);
-      let recvBuf = Buffer.from([]);
-      socket.setTimeout(2000, () => {
-        socket.end();
-      })
-      socket.on('connect', () => {
-        let header = {
-          app: "SendDone",
-          version: VERSION,
-          class: "scan",
-          id: myId,
-          os: OS
-        };
-        socket.write(JSON.stringify(header) + HEADER_END);
-      });
-      socket.on('data', (data) => {
-        recvBuf = Buffer.concat([recvBuf, data]);
-        if (recvBuf.length >= 100000) {
-          // Too long buffer. Close this malicious connection.
-          socket.end();
-        }
-        const ret = _splitHeader(recvBuf);
-        if (ret) {
-          try {
-            let recvHeader = JSON.parse(ret.header);
-            if (recvHeader && recvHeader.app === 'SendDone' && recvHeader.class === 'ok') {
-              if (callback)
-                callback(socket.remoteAddress, recvHeader.version, recvHeader.id, recvHeader.os);
-            }
-          } catch (err) {
-            // Just close this malicious connection.
-            socket.end();
-          } finally {
-            socket.end();
-          }
-        }
-      })
-      socket.on('error', () => {
-        // Do nothing.
-      });
-      socket.on('close', () => {
-        socket.end();
-      });
-    }
-    currentIp++;
-  }
+  let myIpInNumber = _IpStringToNumber(ip);
+  ++scanIndex;
+  scanIsAlive.forEach((value, index) => { scanIsAlive[index] = false; });
+  for (let i = 0; i < scanSize; ++i)
+    _scan(currentIp + i, myIpInNumber, broadcastIp, myId, scanIndex, callback);
 }
+/**
+ * 
+ * @param {number} currentIp 
+ * @param {number} myIp 
+ * @param {number} broadcastIp 
+ * @param {string} myId 
+ * @param {number} thisIndex 
+ * @param {scanCallback} callback 
+ * @returns 
+ */
+function _scan(currentIp, myIp, broadcastIp, myId, thisIndex, callback) {
+  if (broadcastIp <= currentIp)
+    return;
 
+  let thisIp = _IpNumberToString(currentIp);
+  let calledNext = false;
+  let socket = undefined;
+  const callNext = () => {
+    if (calledNext)
+      return;
+    calledNext = true;
+    if (socket)
+      socket.destroy();
+    if (scanIndex !== thisIndex)
+      return;
+    scanIsAlive[currentIp % scanSize] = false;
+    let numAlive = 0;
+    scanIsAlive.map((value, index) => { if (value) ++numAlive; });
+    setTimeout(() => {
+      if (numAlive === 0) {
+        for (let i = 0; i < scanSize; ++i)
+          _scan(currentIp + scanSize + i, myIp, broadcastIp, myId, thisIndex, callback);
+      }
+    }, 0);
+  }
+  if (currentIp == myIp) {
+    callNext();
+    return;
+  }
+
+  scanIsAlive[currentIp % scanSize] = true;
+  socket = net.createConnection(PORT, thisIp);
+  socket.setTimeout(scanTimeout, () => {
+    callNext(socket);
+  })
+  let recvBuf = Buffer.from([]);
+  socket.on('connect', () => {
+    let header = {
+      app: "SendDone",
+      version: VERSION,
+      class: "scan",
+      id: myId,
+      os: OS
+    };
+    socket.write(JSON.stringify(header) + HEADER_END);
+  });
+  socket.on('data', (data) => {
+    recvBuf = Buffer.concat([recvBuf, data]);
+    if (recvBuf.length >= 10000) {
+      // Too long buffer. Close this malicious connection.
+      callNext();
+    }
+    const ret = _splitHeader(recvBuf);
+    if (ret) {
+      try {
+        let recvHeader = JSON.parse(ret.header);
+        if (recvHeader && recvHeader.app === 'SendDone' && recvHeader.class === 'ok') {
+          if (callback)
+            callback(thisIp, recvHeader.version, recvHeader.id, recvHeader.os);
+        }
+      } catch (err) {
+        // Just close this malicious connection.
+      } finally {
+        socket.end();
+      }
+    }
+  })
+  socket.on('error', (err) => {
+    callNext();
+  });
+  socket.on('close', () => {
+    callNext();
+  });
+}
 /**
  * Return number representation of IPv4.
  * @param {String} ip String representation of IPv4.

@@ -2,7 +2,7 @@
   box-sizing: border-box;
   user-select: none;
   -webkit-user-select: none;
-  z-index: 100;
+  z-index: 5;
 }
 .App {
   position: relative;
@@ -172,7 +172,13 @@ select:disabled {
   opacity: 0.5;
 }
 
-.Setting {
+.SettingsImage {
   height: 2.5rem;
   margin-top: 0.5rem;
+}
+.SettingsImage:hover {
+  filter: brightness(120%);
+}
+.SettingsImage:active {
+  box-shadow: 0 0 2px 2px #fff;
 }
