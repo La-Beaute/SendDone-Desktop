@@ -339,7 +339,7 @@ class Sender {
         speed: this.getSpeed(),
         progress: this.getItemProgress(),
         totalProgress: this.getTotalProgress(),
-        name: this._itemArray[this._index].name
+        name: this._itemArray[Math.min(this._index, this.getNumItems())].name
       };
     }
     return { state: this._state };
