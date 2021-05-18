@@ -154,7 +154,7 @@ function App() {
           <div className="Head-Header">
             SendDone
           <br />
-            <div style={{ fontSize: '2.5rem'}}>Hi, {myId}!</div>
+            <div style={{ fontSize: '2.5rem' }}>Hi, {myId}!</div>
           </div>
           <div className="Head-Buttons">
             <select onChange={(e) => {
@@ -174,7 +174,7 @@ function App() {
               :
               <button onClick={openServerSocket} className="TextButton ServerStatClose">Open Server</button>
             }
-            <img src={image} alt='Setting' onClick={() => { setShowBlind(true); setShowSettings(true);}} className='Setting'></img>
+            <img src={image} className="SettingsImage" alt='Settings' onClick={() => { setShowBlind(true); setShowSettings(true); }} />
           </div>
         </div>
       </div>

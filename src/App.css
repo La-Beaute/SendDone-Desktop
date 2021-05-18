@@ -172,7 +172,13 @@ select:disabled {
   opacity: 0.5;
 }
 
-.Setting {
+.SettingsImage {
   height: 2.5rem;
   margin-top: 0.5rem;
+}
+.SettingsImage:hover {
+  filter: brightness(120%);
+}
+.SettingsImage:active {
+  box-shadow: 0 0 2px 2px #fff;
 }
