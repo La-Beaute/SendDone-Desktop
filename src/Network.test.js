@@ -45,7 +45,7 @@ const acceptReceiving = (done) => {
     setTimeout(() => { acceptReceiving(done) }, 10);
   }
   else {
-    done(new Error('receiver state is not valid:', state));
+    done(new Error('receiver state is not valid:' + state));
   }
 };
 
@@ -59,7 +59,7 @@ async function resetReceiver(done) {
     setTimeout(() => { resetReceiver(done) }, 10);
   }
   else {
-    done(new Error('receiver state is not valid:', state));
+    done(new Error('receiver state is not valid:' + state));
   }
 }
 
@@ -98,7 +98,7 @@ const acceptReceivingStop = (done) => {
     setTimeout(() => { acceptReceivingStop(done) }, 10);
   }
   else {
-    done(new Error('receiver state is not valid:', state));
+    done(new Error('receiver state is not valid:' + state));
   }
 };
 
@@ -115,7 +115,7 @@ async function resetReceiverStop(done) {
     setTimeout(() => { resetReceiverStop(done) }, 10);
   }
   else {
-    done(new Error('receiver state is not valid:', state));
+    done(new Error('receiver state is not valid:' + state));
   }
 }
 

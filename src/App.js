@@ -174,7 +174,7 @@ function App() {
               :
               <button onClick={openServerSocket} className="TextButton ServerStatClose">Open Server</button>
             }
-            <img src={image} alt='Setting' onClick={() => { setShowBlind(true); setShowSettings(true);}} className='Setting'></img>
+            <img src={image} className="SettingsImage" alt='Settings' onClick={() => { setShowBlind(true); setShowSettings(true); }} />
           </div>
         </div>
       </div>
