@@ -13,7 +13,7 @@
   overflow-y: auto;
   border: 1px solid grey;
   border-radius: 10px 10px 10px 10px;
-  background-color: #eeeeee;
+  background-color: white;
 }
 
 .ItemElement {
@@ -28,7 +28,7 @@
   text-overflow: ellipsis;
   color: black;
   font-weight: bold;
-  font-size: 0.9rem;
+  font-size: calc(1.5vw + 2.5px);
 }
 
 .ItemHead {
@@ -40,4 +40,9 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+input {
+  width: 1.5vw;
+  height: 1.5vw;
 }

@@ -6,7 +6,7 @@ import SendView from './components/SendView';
 import RecvView from './components/RecvView';
 import Blind from './components/Blind';
 import './App.css';
-import image from './settings.png';
+import image from './images/settings.png';
 // Below lines are importing modules from window object.
 // Look at 'preload.js' for more understanding.
 // const networking = window.networking;
@@ -154,7 +154,7 @@ function App() {
           <div className="Head-Header">
             SendDone
           <br />
-            <div style={{ fontSize: '2.5rem'}}>Hi, {myId}!</div>
+            <div style={{ fontSize: 'calc(3vw + 8px)'}}>Hi, {myId}!</div>
           </div>
           <div className="Head-Buttons">
             <select onChange={(e) => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import './DeviceView.css';
-
+import desktop from '../images/desktop.png'
 /**
  * Each device has the following keys:
  *  ip, version, id, os 
@@ -13,7 +13,7 @@ function DeviceView({ deviceArray, sendIp, setSendIp }) {
         onClick={(e) => {
           setSendIp(device.ip);
         }}>
-        <img className="Osimg" alt={device.os}></img>
+        <img className="Osimg" src={desktop} alt={device.os}></img>
         <div className="DeviceElement-Box">
           <div className="DeviceElement-ID">
             {device.id}

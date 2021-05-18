@@ -19,11 +19,14 @@ function SendView({ setShowBlind, setSending, state }) {
     return (
       <div className="SendView">
         <div className="SendView-Body">
-          <div>
+          <div className='ItemName'>
             {state.name}
           </div>
           <div>
             {state.progress}%
+          </div>
+          <div className="progressBar">
+            <div className="insideBar" style={{width: `${state.progress}%`}}></div>
           </div>
           <div>
             {state.speed}
