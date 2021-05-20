@@ -28,6 +28,7 @@ const STATE = {
 const OS = os.platform();
 let scanIndex = 0;
 let scanSize = 10;
+let scanFirstIp = 0;
 const scanIsAlive = Array(scanSize).fill(false);
 const scanTimeout = 300;
 
@@ -89,6 +90,7 @@ function scan(ip, netmask, myId, callback) {
   let myIpInNumber = _IpStringToNumber(ip);
   ++scanIndex;
   scanIsAlive.forEach((value, index) => { scanIsAlive[index] = false; });
+  scanFirstIp = currentIp;
   for (let i = 0; i < scanSize; ++i)
     _scan(currentIp + i, myIpInNumber, broadcastIp, myId, scanIndex, callback);
 }
@@ -105,7 +107,6 @@ function scan(ip, netmask, myId, callback) {
 function _scan(currentIp, myIp, broadcastIp, myId, thisIndex, callback) {
   if (broadcastIp <= currentIp)
     return;
-
   let thisIp = _IpNumberToString(currentIp);
   let calledNext = false;
   let socket = undefined;
@@ -120,12 +121,13 @@ function _scan(currentIp, myIp, broadcastIp, myId, thisIndex, callback) {
     scanIsAlive[currentIp % scanSize] = false;
     let numAlive = 0;
     scanIsAlive.map((value, index) => { if (value) ++numAlive; });
-    setTimeout(() => {
-      if (numAlive === 0) {
+    if (numAlive === 0) {
+      scanFirstIp += scanSize;
+      setTimeout(() => {
         for (let i = 0; i < scanSize; ++i)
-          _scan(currentIp + scanSize + i, myIp, broadcastIp, myId, thisIndex, callback);
-      }
-    }, 0);
+          _scan(scanFirstIp + i, myIp, broadcastIp, myId, thisIndex, callback);
+      }, 0);
+    }
   }
   if (currentIp == myIp) {
     callNext();
