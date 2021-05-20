@@ -14,8 +14,8 @@
 }
 
 .Osimg {
-  height: 4vw;
-  margin-left: 1vw;
+  height: 2rem;
+  margin-left: 1rem;
   padding: 1px;
 }
 
@@ -40,9 +40,9 @@
   padding: 5px;
 }
 .DeviceElement-ID {
-  font-size: calc(1vw + 10px);
+  font-size: 1.2rem;
   font-weight: bold;
 }
 .DeviceElement-IP-Ver {
-  font-size: calc(0.5vw + 10px);
+  font-size: 0.7rem;
 }

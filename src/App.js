@@ -154,7 +154,7 @@ function App() {
           <div className="Head-Header">
             SendDone
           <br />
-            <div style={{ fontSize: 'calc(3vw + 8px)'}}>Hi, {myId}!</div>
+            <div style={{ fontSize: '2rem'}}>Hi, {myId}!</div>
           </div>
           <div className="Head-Buttons">
             <select onChange={(e) => {
