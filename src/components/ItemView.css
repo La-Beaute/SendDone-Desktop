@@ -28,7 +28,7 @@
   text-overflow: ellipsis;
   color: black;
   font-weight: bold;
-  font-size: calc(1.5vw + 2.5px);
+  font-size: 0.9rem;
 }
 
 .ItemHead {
@@ -41,9 +41,4 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-input {
-  width: 1.5vw;
-  height: 1.5vw;
 }
