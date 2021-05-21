@@ -196,9 +196,9 @@ ipcMain.handle('setReceiverIdle', () => {
 
 ipcMain.handle('getSendState', () => {
   if (sender) {
-    const state = sender.getState();
-    return state;
+    return sender.getState();
   }
+  return undefined;
 })
 
 ipcMain.handle('endSend', () => {
