@@ -14,8 +14,17 @@ function SendView({ setShowBlind, setSending, state }) {
     setShowBlind(false);
     window.ipcRenderer.invoke('setReceiverIdle');
   }
-
-  if (state.state === STATE.SEND)
+  
+  if (state.state === STATE.SEND) {
+    let sendSpeed = '';
+    if (parseFloat(state.speed) > 1000) {
+      if (parseFloat(state.speed) > 1000000)
+        sendSpeed = (parseFloat(state.speed)/ 1000000).toFixed(2).toString() + ' MB/S'
+      else
+        sendSpeed = (parseFloat(state.speed) / 1000).toFixed(2).toString() + ' KB/S'
+    }
+    else
+      sendSpeed = parseFloat(state.speed).toFixed(2).toString() + ' B/S'
     return (
       <div className="SendView">
         <div className="SendView-Body">
@@ -26,13 +35,13 @@ function SendView({ setShowBlind, setSending, state }) {
             {state.progress}%
           </div>
           <div className="progressBar">
-            <div className="insideBar" style={{width: `${state.progress}%`}}></div>
+            <div className="insideBar" style={{ width: `${state.progress}%` }}></div>
           </div>
           <div>
-            {state.speed}
+            Send Speed : {sendSpeed}
           </div>
           <div>
-            {state.totalProgress}
+            Total Progress : {state.totalProgress}
           </div>
         </div>
         <div className="SendView-Buttons">
@@ -40,6 +49,7 @@ function SendView({ setShowBlind, setSending, state }) {
         </div>
       </div>
     )
+  }
   if (state.state === STATE.SEND_REJECT)
     return (
       <div className="SendView">

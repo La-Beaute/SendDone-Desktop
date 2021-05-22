@@ -1,10 +1,10 @@
-.RecvView{
+.RecvView {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 30vw;
-  height: 40vh;
+  width: 40vw;
+  height: 50vh;
   min-width: 500px;
   min-height: 350px;
   background-color: white;
@@ -12,7 +12,7 @@
   border-radius: 10px;
 }
 
-.RecvView-Body{
+.RecvView-Body {
   display: flex;
   width: 100%;
   height: 80%;
@@ -20,14 +20,35 @@
   align-items: center;
   justify-content: center;
   border: 1px solid grey;
+  font-size: calc(1vw + 10px);
+  font-weight: bold;
+  background-color: white;
 }
-
-
-.RecvView-Buttons{
+.RecvView-Body .ItemName {
+  padding: 5px;
+  margin-bottom: 1vw;
+}
+.RecvView-Buttons {
   display: flex;
   width: 100%;
   height: 20%;
   flex-direction: row;
   align-items: center;
   justify-content: center;
+}
+
+.progressBar {
+  display: flex;
+  align-items: flex-start;
+  height: 24px;
+  width: 90%;
+  border: 7px solid #f4a261;
+  border-radius: 15px;
+  margin-top: 5px;
+  margin-bottom: 1vw;
+}
+.insideBar {
+  background-color: #4bc4b5;
+  height: 10px;
+  border-radius: 15px;
 }

@@ -40,9 +40,9 @@
 .progressBar {
   display: flex;
   align-items: flex-start;
-  height: 30px;
+  height: 24px;
   width: 90%;
-  border: 10px solid #f4a261;
+  border: 7px solid #f4a261;
   border-radius: 15px;
   margin-top: 5px;
   margin-bottom: 1vw;
