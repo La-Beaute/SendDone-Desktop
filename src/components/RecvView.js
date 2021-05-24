@@ -51,14 +51,12 @@ function RecvView({ setShowBlind, setReceiving, state }) {
     )
   if (state.state === STATE.RECV) {
     let downloadSpeed = '';
-    if (parseFloat(state.speed) > 1000) {
-      if (parseFloat(state.speed) > 1000000)
-        downloadSpeed = (parseFloat(state.speed) / 1000000).toFixed(2).toString() + ' MB/S'
-      else
-        downloadSpeed = (parseFloat(state.speed) / 1000).toFixed(2).toString() + ' KB/S'
-    }
+    if (parseFloat(state.speed) > 1048576)
+      sendSpeed = (parseFloat(state.speed) / 1048576).toFixed(2).toString() + ' MB/S'
+    else if (parseFloat(state.speed) > 1024)
+      sendSpeed = (parseFloat(state.speed) / 1024).toFixed(2).toString() + ' KB/S'
     else
-      downloadSpeed = parseFloat(state.speed).toFixed(2).toString() + ' B/S'
+      sendSpeed = parseFloat(state.speed).toFixed(2).toString() + ' B/S'
     return (
       <div className="RecvView">
         <div className="RecvView-Body">
@@ -68,7 +66,7 @@ function RecvView({ setShowBlind, setReceiving, state }) {
           <div>
             {state.progress}%
           </div>
-          <div className="progressBar">
+          <div className="ProgressBar">
             <div className="insideBar" style={{ width: `${state.progress}%` }}></div>
           </div>
           <div>

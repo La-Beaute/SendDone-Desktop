@@ -37,7 +37,7 @@
   justify-content: center;
 }
 
-.progressBar {
+.ProgressBar {
   display: flex;
   align-items: flex-start;
   height: 24px;
