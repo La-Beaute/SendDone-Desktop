@@ -16,13 +16,13 @@ function SendView({ setShowBlind, setSending, state }) {
   }
 
   if (state.state === STATE.SEND) {
-    let sendSpeed = '';
-    if (parseFloat(state.speed) > 1048576)
-      sendSpeed = (parseFloat(state.speed) / 1048576).toFixed(2).toString() + ' MB/S'
-    else if (parseFloat(state.speed) > 1024)
-      sendSpeed = (parseFloat(state.speed) / 1024).toFixed(2).toString() + ' KB/S'
+    let speed = parseFloat(state.speed);
+    if (speed > 1048576)
+      speed = (speed / 1048576).toFixed(2).toString() + ' MB/S'
+    else if (speed > 1024)
+      speed = (speed / 1024).toFixed(2).toString() + ' KB/S'
     else
-      sendSpeed = parseFloat(state.speed).toFixed(2).toString() + ' B/S'
+      speed = speed.toFixed(2).toString() + ' B/S'
     return (
       <div className="SendView">
         <div className="SendView-Body">
@@ -36,7 +36,7 @@ function SendView({ setShowBlind, setSending, state }) {
             <div className="insideBar" style={{ width: `${state.progress}%` }}></div>
           </div>
           <div>
-            Send Speed : {sendSpeed}
+            Send Speed : {speed}
           </div>
           <div>
             Total Progress : {state.totalProgress}
