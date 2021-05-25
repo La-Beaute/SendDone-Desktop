@@ -88,8 +88,10 @@ function App() {
 
   const getRecvState = async () => {
     const state = await ipcRenderer.invoke('getRecvState');
-    if (state.state === STATE.RECV_WAIT)
+    if (state.state === STATE.RECV_WAIT) {
+      setShowBlind(true);
       setReceiving(true);
+    }
     setRecvState(() => state);
   }
 
@@ -154,7 +156,7 @@ function App() {
           <div className="Head-Header">
             SendDone
           <br />
-            <div style={{ fontSize: '2rem'}}>Hi, {myId}!</div>
+            <div style={{ fontSize: '2rem' }}>Hi, {myId}!</div>
           </div>
           <div className="Head-Buttons">
             <select onChange={(e) => {
