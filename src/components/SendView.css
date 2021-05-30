@@ -24,9 +24,12 @@
   font-weight: bold;
   background-color: white;
 }
-.SendView-Body .ItemName {
+.ItemName {
   padding: 5px;
-  margin-bottom: 1vw;
+  margin-bottom: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .SendView-Buttons {
   display: flex;

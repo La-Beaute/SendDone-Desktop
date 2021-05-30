@@ -27,9 +27,7 @@ function Settings({ setShowSettings, setShowBlind, myId, setMyId }) {
           <button onClick={() => {
             window.ipcRenderer.invoke('setDownloadDirectory').then((value) => {
               if (value) {
-                // window.localStorage.setItem('downloadDirectory', value);
-                console.log(value);
-                setDownloadDirectory(downloadDirectory => value);
+                setDownloadDirectory(value);
               }
             });
           }} className="TextButton">Set</button>
@@ -38,9 +36,15 @@ function Settings({ setShowSettings, setShowBlind, myId, setMyId }) {
           <div className="Settings-Item-Key">
             My ID:
           </div>
-          <input type='text' onClick={() => { console.log('click'); }} onChange={(e) => {
-            setTmpMyId(() => e.target.value);
-          }} value={tmpMyId ? tmpMyId : ''} className="Settings-Item-Value" />
+          <input
+            type='text'
+            onChange={(e) => {
+              setTmpMyId(() => e.target.value);
+            }}
+            value={tmpMyId ? tmpMyId : ''}
+            className="Settings-Item-Value"
+            maxLength={10}
+          />
         </div>
       </div>
       <div className="Settings-Buttons">
