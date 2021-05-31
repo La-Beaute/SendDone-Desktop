@@ -132,7 +132,7 @@ function App() {
     });
 
     if (myId)
-      ipcRenderer.invoke('changeMyId', myId);
+      ipcRenderer.invoke('setMyId', myId);
     if (!myIp)
       getNetworks();
     intervalFun();

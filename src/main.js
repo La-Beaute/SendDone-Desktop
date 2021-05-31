@@ -174,7 +174,7 @@ ipcMain.handle('isServerSocketOpen', () => {
 
 ipcMain.handle('set-id', (event, myId) => {
   if (myId)
-    receiver.changeMyId(myId);
+    receiver.setMyId(myId);
 })
 
 ipcMain.handle('send', (event, ip, items, myId) => {
@@ -245,8 +245,8 @@ ipcMain.handle('setDownloadDirectory', () => {
   return '';
 })
 
-ipcMain.handle('changeMyId', (event, myId) => {
-  receiver.changeMyId(myId);
+ipcMain.handle('setMyId', (event, myId) => {
+  receiver.setMyId(myId);
 })
 
 ipcMain.handle('showMessage', (event, message) => {

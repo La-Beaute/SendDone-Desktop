@@ -317,6 +317,8 @@ class Sender {
    * @returns {number}
    */
   getItemProgress() {
+    // If item type is directory, set this._itemSize to 0.
+    // In case of empty file whose size is 0, progress is 100%.
     return (this._itemSize === 0 ? 100 : Math.floor(this._itemSentBytes / this._itemSize * 100));
   }
   /**

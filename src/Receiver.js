@@ -149,7 +149,7 @@ class Receiver {
       /**
        * @type {Buffer}
        */
-      let recvBuf = new Buffer.from([]);
+      let recvBuf = Buffer.from([]);
       let recvHeader = null;
       let haveParsedHeader = false;
       console.log('Receiver: connection from ' + socket.remoteAddress + ':' + socket.remotePort);
@@ -269,25 +269,20 @@ class Receiver {
                   this._state = STATE.RECV;
                 this._itemName = path.join(recvHeader.dir, recvHeader.name);
                 if (recvHeader.type === 'directory') {
+                  haveParsedHeader = false;
+                  this._itemSize = 0;
+                  this._numRecvItem++;
                   try {
                     await fs.mkdir(path.join(this._downloadPath, this._itemName));
                   } catch (err) {
-                    if (err.code === 'EEXIST') {
-                      this._itemFlag = 'ok';
-                      this._writeOnRecvSocket();
-                    }
-                    else {
+                    if (err.code !== 'EEXIST') {
                       // Making directory failed.
                       // Even making directory failed means there are serious issues.
                       this._state = STATE.ERR_FS;
                       this._recvSocket.destroy();
+                      return;
                     }
-                    haveParsedHeader = false;
-                    this._itemSize = 0;
-                    this._numRecvItem++;
-                    return;
                   }
-                  haveParsedHeader = false;
                   this._itemFlag = 'ok';
                   this._writeOnRecvSocket();
                 }
@@ -380,7 +375,7 @@ class Receiver {
    * Change this my id.
    * @param {string} newId 
    */
-  changeMyId(newId) {
+  setMyId(newId) {
     if (!newId)
       return false;
     this._myId = newId;
@@ -412,6 +407,8 @@ class Receiver {
    * @returns {number}
    */
   getItemProgress() {
+    // If item type is directory, set this._itemSize to 0.
+    // In case of empty file whose size is 0, progress is 100%.
     return (this._itemSize === 0 ? 100 : Math.floor(this._itemWrittenBytes / this._itemSize * 100));
   }
   /**
@@ -450,8 +447,7 @@ class Receiver {
    * user has been acknowledged about the status and okay to do another job.
    */
   setStateIdle() {
-    if (this._state === STATE.RECV_BUSY || this._state === STATE.RECV_DONE)
-      this._state = STATE.IDLE;
+    this._state = STATE.IDLE;
   }
 
   /**
