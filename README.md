@@ -1,3 +1,6 @@
+# 🚧**DEPRECATED**🚧
+Please consider using other applications for use.
+
 # SendDone-Desktop
 This is a reporitory for SendDone, desktop version.<br>
 
